@@ -4,7 +4,8 @@ import {
   Sun, ChevronRight, ChevronLeft, CheckCircle, ArrowRight, Scan,
   AlertCircle, Search, ChevronDown, ChevronUp, RotateCcw,
   AlertTriangle, Plus, Save, Copy, Check, MessageCircle,
-  Wifi, WifiOff, Trash2, FileText, ExternalLink, Clock, X
+  Wifi, WifiOff, Trash2, FileText, ExternalLink, Clock, X,
+  Eye, Star, Download, ImagePlus
 } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 
@@ -40,9 +41,9 @@ const refrigerantGuide = [
     normalCurrent: '4–8 A (ขึ้นกับขนาด BTU)',
     evapTemp: '8–12°C',
     condTemp: '40–55°C',
-    notes: 'น้ำยาไวไฟ Class A2L เติมแบบ Liquid เท่านั้น ใช้กับ Inverter รุ่นใหม่',
-    warningColor: '#fb923c',
-    warning: 'ห้ามเติมแบบ Gas ต้องพลิกกระบอกให้ของเหลวไหล',
+    notes: 'น้ำยาไวไฟ Class A2L สารทำความเย็นเชิงเดี่ยว (Pure Refrigerant) ใช้กับ Inverter รุ่นใหม่',
+    warningColor: null,
+    warning: null,
   },
   {
     type: 'R410A',
@@ -52,9 +53,9 @@ const refrigerantGuide = [
     normalCurrent: '4–9 A (ขึ้นกับขนาด BTU)',
     evapTemp: '5–10°C',
     condTemp: '45–58°C',
-    notes: 'ไม่ไวไฟ ใช้กับระบบ Inverter และ Fixed Speed รุ่นกลาง',
-    warningColor: null,
-    warning: null,
+    notes: 'ไม่ไวไฟ สารผสม Azeotropic ใช้กับระบบ Inverter และ Fixed Speed รุ่นกลาง',
+    warningColor: '#fb923c',
+    warning: 'ห้ามเติมในสถานะ Gas เด็ดขาด ต้องคว่ำถังเติมในสถานะของเหลว (Liquid) เท่านั้น',
   },
   {
     type: 'R22',
@@ -66,7 +67,7 @@ const refrigerantGuide = [
     condTemp: '40–55°C',
     notes: 'HCFC — กำลังถูกยกเลิก ใช้กับรุ่นเก่าเท่านั้น ห้ามผสมกับน้ำยาชนิดอื่น',
     warningColor: '#f87171',
-    warning: 'สารทำลายชั้นโอโซน ห้ามระบายสู่บรรยากาศ',
+    warning: 'สารทำลายชั้นโอโซน ห้ามระบายสู่บรรยากาศโดยเด็ดขาด',
   },
 ]
 
@@ -1050,17 +1051,18 @@ function ElectricalCalculatorPanel() {
   const [result, setResult] = useState(null)
 
   const getWireSize = (amps) => {
-    if (amps <= 6) return { main: '1.5', desc: 'THW 1.5 sq.mm' }
-    if (amps <= 11) return { main: '2.5', desc: 'THW 2.5 sq.mm' }
-    if (amps <= 15) return { main: '4.0', desc: 'THW 4.0 sq.mm' }
-    if (amps <= 20) return { main: '6.0', desc: 'THW 6.0 sq.mm' }
-    return { main: '10.0', desc: 'THW 10.0 sq.mm' }
+    if (amps <= 6) return { main: '1.5', desc: 'IEC 01 (THW) / IEC 10 (VAF) 1.5 sq.mm' }
+    if (amps <= 11) return { main: '2.5', desc: 'IEC 01 (THW) / IEC 10 (VAF) 2.5 sq.mm' }
+    if (amps <= 15) return { main: '4.0', desc: 'IEC 01 (THW) / IEC 10 (VAF) 4.0 sq.mm' }
+    if (amps <= 20) return { main: '6.0', desc: 'IEC 01 (THW) / IEC 10 (VAF) 6.0 sq.mm' }
+    return { main: '10.0', desc: 'IEC 01 (THW) / IEC 10 (VAF) 10.0 sq.mm' }
   }
 
   const getBreakerSize = (amps) => {
     const required = amps * 1.25
-    const BREAKER_SIZES = [10, 16, 20, 25, 32, 40, 50, 63]
-    return BREAKER_SIZES.find(b => b >= required) || 63
+    const THAI_BREAKER_SIZES = [10, 16, 20, 25, 32]
+    const found = THAI_BREAKER_SIZES.find(b => b >= required)
+    return found || 32
   }
 
   const calcElectrical = (btu) => {
@@ -1220,21 +1222,49 @@ function DiagnosticPanel() {
   const [search, setSearch] = useState('')
   const [expandedCode, setExpandedCode] = useState(null)
 
+  // Question history stack for back navigation
+  const [questionHistory, setQuestionHistory] = useState([])
+
   const handleSymptom = (id) => {
     setSymptom(id)
     setAnswers({})
     setCurrentQ('q1')
     setResults(null)
+    setQuestionHistory([])
   }
 
   const handleAnswer = (option) => {
     const newAnswers = { ...answers, [currentQ]: option.label }
     setAnswers(newAnswers)
     if (option.results) {
+      setQuestionHistory(prev => [...prev, { q: currentQ, answers: answers, results: null }])
       setResults(option.results)
     } else if (option.next) {
+      setQuestionHistory(prev => [...prev, { q: currentQ, answers: answers, results: null }])
       setCurrentQ(option.next)
     }
+  }
+
+  const handleBack = () => {
+    if (results) {
+      const prev = questionHistory[questionHistory.length - 1]
+      if (prev) {
+        setResults(null)
+        setCurrentQ(prev.q)
+        setAnswers(prev.answers)
+        setQuestionHistory(h => h.slice(0, -1))
+      }
+      return
+    }
+    if (questionHistory.length === 0) {
+      resetChecklist()
+      return
+    }
+    const prev = questionHistory[questionHistory.length - 1]
+    setResults(null)
+    setCurrentQ(prev.q)
+    setAnswers(prev.answers)
+    setQuestionHistory(h => h.slice(0, -1))
   }
 
   const resetChecklist = () => {
@@ -1242,6 +1272,7 @@ function DiagnosticPanel() {
     setAnswers({})
     setCurrentQ('q1')
     setResults(null)
+    setQuestionHistory([])
   }
 
   const currentTree = symptom ? diagnosticTree.find(s => s.id === symptom) : null
@@ -1304,10 +1335,18 @@ function DiagnosticPanel() {
                     {diagnosticTree.find(s => s.id === symptom)?.label}
                   </p>
                 </div>
-                <button onClick={resetChecklist} className="flex items-center gap-1.5 text-xs text-sky-400 active:text-white font-bold">
-                  <RotateCcw size={13} />
-                  เริ่มวินิจฉัยใหม่
-                </button>
+                <div className="flex items-center gap-2">
+                  {(questionHistory.length > 0 || results) && (
+                    <button onClick={handleBack} className="flex items-center gap-1 text-xs text-amber-400 active:text-white font-bold px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/25 rounded-lg">
+                      <ChevronLeft size={13} />
+                      ย้อนกลับ
+                    </button>
+                  )}
+                  <button onClick={resetChecklist} className="flex items-center gap-1.5 text-xs text-slate-400 active:text-white font-bold">
+                    <RotateCcw size={13} />
+                    เริ่มใหม่
+                  </button>
+                </div>
               </div>
 
               {Object.keys(answers).length > 0 && (
@@ -1375,6 +1414,10 @@ function DiagnosticPanel() {
                     <RotateCcw size={16} />
                     ทำเช็คลิสต์อาการใหม่อีกครั้ง
                   </button>
+                  <button onClick={handleBack} className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 font-bold text-sm tap-target">
+                    <ChevronLeft size={16} />
+                    ย้อนกลับขั้นตอนที่แล้ว
+                  </button>
                 </div>
               )}
             </div>
@@ -1408,8 +1451,16 @@ function DiagnosticPanel() {
               placeholder="พิมพ์โค้ด เช่น U4, L5 หรือพิมพ์เพื่อค้นหา..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="input-field pl-10 text-base"
+              className="input-field pl-10 pr-10 text-base"
             />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors tap-target p-1"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-1">
@@ -1957,9 +2008,11 @@ function NameplateScannerPanel({ onNavigate }) {
   const { setScannedJobData } = useCalculator()
   const videoRef = useRef(null)
   const streamRef = useRef(null)
+  const imageInputRef = useRef(null)
   const [cameraState, setCameraState] = useState('idle') // idle | requesting | active | denied | scanning | done
   const [scanResult, setScanResult] = useState(null)
   const [error, setError] = useState('')
+  const [uploadedImage, setUploadedImage] = useState(null)
 
   const MOCK_RESULTS = [
     { brand: 'Mitsubishi', model: 'MSY-KX13VF', serialNo: '24B098715', refrigerant: 'R32', notes: 'สแกนสำเร็จจากกล้องจำลอง AI' },
@@ -2004,6 +2057,24 @@ function NameplateScannerPanel({ onNavigate }) {
     }, 2000)
   }
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      setUploadedImage(evt.target.result)
+      setCameraState('scanning')
+      setTimeout(() => {
+        const mock = MOCK_RESULTS[Math.floor(Math.random() * MOCK_RESULTS.length)]
+        setScanResult(mock)
+        setScannedJobData(mock)
+        setCameraState('done')
+        setUploadedImage(null)
+      }, 2500)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleUseData = () => {
     stopCamera()
     onNavigate(3) // Switch to Job Logger
@@ -2044,9 +2115,19 @@ function NameplateScannerPanel({ onNavigate }) {
             />
 
             {cameraState === 'idle' && (
-              <div className="text-center p-4 space-y-2">
+              <div className="text-center p-4 space-y-3">
                 <Camera size={48} className="mx-auto text-slate-700 animate-pulse" />
                 <p className="text-sm font-semibold text-slate-400">หน้าต่างกล้องพร้อมเปิดใช้งาน</p>
+                {/* Dashed target overlay guideline */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-3/4 h-1/2 border-2 border-dashed border-purple-500/40 rounded-xl relative">
+                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-slate-900 px-2 text-[10px] text-purple-400 font-bold">วางเนมเพลทในกรอบนี้</span>
+                    <span className="absolute top-0.5 left-0.5 w-4 h-4 border-t-2 border-l-2 border-purple-400 rounded-tl" />
+                    <span className="absolute top-0.5 right-0.5 w-4 h-4 border-t-2 border-r-2 border-purple-400 rounded-tr" />
+                    <span className="absolute bottom-0.5 left-0.5 w-4 h-4 border-b-2 border-l-2 border-purple-400 rounded-bl" />
+                    <span className="absolute bottom-0.5 right-0.5 w-4 h-4 border-b-2 border-r-2 border-purple-400 rounded-br" />
+                  </div>
+                </div>
               </div>
             )}
 
@@ -2054,6 +2135,18 @@ function NameplateScannerPanel({ onNavigate }) {
               <div className="text-center p-4 space-y-2.5">
                 <div className="w-8 h-8 border-3 border-purple-500/30 border-t-purple-400 rounded-full animate-spin mx-auto" />
                 <p className="text-xs font-bold text-slate-400">กำลังเข้าถึงกล้องหลังอุปกรณ์...</p>
+              </div>
+            )}
+
+            {(cameraState === 'active') && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-3/4 h-1/2 border-2 border-dashed border-purple-400/60 rounded-xl relative">
+                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-slate-950/80 px-2 text-[10px] text-purple-300 font-bold">เล็งเนมเพลทให้อยู่ในกรอบ</span>
+                  <span className="absolute top-0.5 left-0.5 w-4 h-4 border-t-2 border-l-2 border-purple-400 rounded-tl" />
+                  <span className="absolute top-0.5 right-0.5 w-4 h-4 border-t-2 border-r-2 border-purple-400 rounded-tr" />
+                  <span className="absolute bottom-0.5 left-0.5 w-4 h-4 border-b-2 border-l-2 border-purple-400 rounded-bl" />
+                  <span className="absolute bottom-0.5 right-0.5 w-4 h-4 border-b-2 border-r-2 border-purple-400 rounded-br" />
+                </div>
               </div>
             )}
 
@@ -2088,39 +2181,66 @@ function NameplateScannerPanel({ onNavigate }) {
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              {cameraState === 'idle' && (
+                <button id="scanner-start" onClick={startCamera} className="btn-primary flex-1" style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
+                  <Camera size={20} />
+                  เปิดระบบกล้องบันทึกเพลท
+                </button>
+              )}
+
+              {cameraState === 'active' && (
+                <button id="scanner-scan" onClick={handleScan} className="btn-primary">
+                  <Scan size={20} />
+                  เริ่มสแกนและประมวลผล
+                </button>
+              )}
+
+              {cameraState === 'scanning' && (
+                <button disabled className="btn-primary opacity-60 cursor-not-allowed">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  กำลังสแกน...
+                </button>
+              )}
+
+              {cameraState === 'done' && (
+                <div className="grid grid-cols-2 gap-2.5 w-full">
+                  <button id="scanner-use-data" onClick={handleUseData} className="btn-success">
+                    <CheckCircle size={18} />
+                    กรอกฟอร์มส่งงาน →
+                  </button>
+                  <button onClick={() => { setCameraState('active'); setScanResult(null) }} className="btn-secondary">
+                    <Scan size={18} />
+                    สแกนซ้ำอีกครั้ง
+                  </button>
+                </div>
+              )}
+            </div>
+
             {cameraState === 'idle' && (
-              <button id="scanner-start" onClick={startCamera} className="btn-primary" style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
-                <Camera size={20} />
-                เปิดระบบกล้องบันทึกเพลท
-              </button>
-            )}
-
-            {cameraState === 'active' && (
-              <button id="scanner-scan" onClick={handleScan} className="btn-primary">
-                <Scan size={20} />
-                เริ่มสแกนและประมวลผล
-              </button>
-            )}
-
-            {cameraState === 'scanning' && (
-              <button disabled className="btn-primary opacity-60 cursor-not-allowed">
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                กำลังสแกน...
-              </button>
-            )}
-
-            {cameraState === 'done' && (
-              <div className="grid grid-cols-2 gap-2.5 w-full">
-                <button id="scanner-use-data" onClick={handleUseData} className="btn-success">
-                  <CheckCircle size={18} />
-                  กรอกฟอร์มส่งงาน →
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-slate-800" />
+                  <span className="text-xs text-slate-500 font-bold">หรือ</span>
+                  <div className="flex-1 h-px bg-slate-800" />
+                </div>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <button
+                  id="scanner-upload"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border-2 border-dashed border-purple-500/40 bg-purple-500/5 text-purple-300 font-bold text-sm hover:border-purple-500/70 hover:bg-purple-500/10 transition-all tap-target"
+                >
+                  <ImagePlus size={18} />
+                  อัปโหลดรูปภาพเนมเพลทจากคลังภาพ
                 </button>
-                <button onClick={() => setCameraState('active')} className="btn-secondary">
-                  <Scan size={18} />
-                  สแกนซ้ำอีกครั้ง
-                </button>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -2365,13 +2485,9 @@ function DocumentLibraryPanel() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {filtered.map(doc => (
-                  <button
+                  <div
                     key={doc.id}
-                    onClick={() => {
-                      addRecent(doc)
-                      setViewedDoc(doc)
-                    }}
-                    className="card p-4 text-left hover:bg-slate-800/80 active:bg-slate-700 transition-all flex items-start gap-3 border border-slate-800 hover:border-slate-700 tap-target"
+                    className="card p-4 flex items-start gap-3 border border-slate-800"
                   >
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
                       style={{ background: `${brandColors[doc.brand]}15` }}>
@@ -2384,8 +2500,46 @@ function DocumentLibraryPanel() {
                         <span className="badge badge-blue text-[9px]">{doc.type}</span>
                         <span className="badge badge-orange text-[9px]">{doc.category}</span>
                       </div>
+                      <div className="flex items-center gap-2 mt-3">
+                        <button
+                          id={`doc-view-${doc.id}`}
+                          onClick={() => { addRecent(doc); setViewedDoc(doc) }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold hover:bg-sky-500/25 transition-all tap-target"
+                          title="เปิดอ่าน"
+                        >
+                          <Eye size={12} />
+                          เปิดอ่าน
+                        </button>
+                        <button
+                          id={`doc-bookmark-${doc.id}`}
+                          onClick={() => addRecent(doc)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all tap-target ${
+                            recentDocs.some(d => d.id === doc.id)
+                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                              : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                          }`}
+                          title="บันทึกสำหรับโปรด"
+                        >
+                          <Star size={12} />
+                          {recentDocs.some(d => d.id === doc.id) ? 'โปรดแล้ว' : 'บันทึก'}
+                        </button>
+                        <button
+                          id={`doc-download-${doc.id}`}
+                          onClick={() => {
+                            const link = document.createElement('a')
+                            link.href = '#'
+                            link.download = `${doc.title}.pdf`
+                            alert(`กำลังดาวน์โหลด: ${doc.title} (ระบบจำลอง — เชื่อมต่อ Cloud Storage เพื่อดาวน์โหลดไฟล์จริง)`)
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-xs font-bold hover:bg-slate-700 transition-all tap-target"
+                          title="ดาวน์โหลด PDF"
+                        >
+                          <Download size={12} />
+                          PDF
+                        </button>
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -2491,7 +2645,7 @@ function SettingsPanel() {
                 แรงดันเกจสแตนดาร์ด R32: <span className="mono font-bold text-sky-400">120 PSI (8.27 Bar)</span>
               </p>
               <p className="text-xs text-slate-500 font-bold">
-                ตัวหนังสือสเกลขนาดปรับเปลี่ยนทันทีตามหัวข้อที่ท่านเลือกปรับ
+                ขนาดตัวอักษรจะปรับเปลี่ยนทันทีตามระดับที่ท่านเลือก
               </p>
             </div>
           </div>
@@ -2566,12 +2720,17 @@ function MainAppContent() {
         </nav>
 
         <div className="pt-4 border-t border-slate-800">
-          <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold ${
-            isOnline ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'
-          }`}>
-            {isOnline ? <Wifi size={18} /> : <WifiOff size={18} />}
-            <span>{isOnline ? 'เชื่อมต่อเครือข่าย' : 'กำลังออฟไลน์อยู่'}</span>
-          </div>
+          {isOnline ? (
+            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold bg-green-500/10 text-green-400">
+              <Wifi size={18} />
+              <span>เชื่อมต่อเครือข่าย</span>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2.5 px-3 py-3 rounded-xl border-2 font-bold bg-red-500/15 border-red-500/50 text-red-300 animate-pulse">
+              <WifiOff size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs leading-tight">⚠️ โหมดออฟไลน์ — กำลังบันทึกข้อมูลในเครื่องชั่วคราว</span>
+            </div>
+          )}
         </div>
       </aside>
 
