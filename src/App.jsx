@@ -2586,6 +2586,7 @@ function DocumentLibraryPanel() {
                         <span className="badge badge-blue text-[9px]">{doc.type}</span>
                         <span className="badge badge-orange text-[9px]">{doc.category}</span>
                       </div>
+                      <div className="flex items-center gap-2 mt-3">
                         {doc.url ? (
                           <a
                             id={`doc-view-${doc.id}`}
