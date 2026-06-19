@@ -1478,7 +1478,22 @@ function DiagnosticPanel() {
       }
 
       const data = await response.json()
-      const reply = data.choices[0]?.message?.content || 'ไม่พบคำตอบจาก AI'
+
+      // Check for Google Apps Script execution error
+      if (data && data.status === 'error') {
+        throw new Error(`Google Apps Script Error: ${data.message}`)
+      }
+
+      // Check for OpenAI API error returned through proxy
+      if (data && data.error) {
+        throw new Error(`OpenAI API Error: ${data.error.message || JSON.stringify(data.error)}`)
+      }
+
+      if (!data || !data.choices || !data.choices[0]) {
+        throw new Error(`Invalid response format from AI: ${JSON.stringify(data)}`)
+      }
+
+      const reply = data.choices[0].message?.content || 'ไม่พบคำตอบจาก AI'
       setAiResponse(reply)
       setAiHistory(prev => [{ query: aiQuery, response: reply, brand: brand }, ...prev].slice(0, 5))
     } catch (err) {
