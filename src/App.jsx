@@ -668,7 +668,11 @@ function dequeue(id) {
 }
 
 async function syncQueue(onProgress) {
-  if (!supabaseConfigured || !supabase) return { synced: 0, failed: 0 }
+  const gasUrl = import.meta.env.VITE_GAS_URL
+  const hasGas = !!gasUrl
+  const hasSupabase = !!(supabaseConfigured && supabase)
+
+  if (!hasGas && !hasSupabase) return { synced: 0, failed: 0 }
   const queue = getQueue()
   if (queue.length === 0) return { synced: 0, failed: 0 }
 
@@ -677,13 +681,44 @@ async function syncQueue(onProgress) {
 
   for (const item of queue) {
     const { _id, _queuedAt, ...record } = item
-    try {
-      const { error } = await supabase.from('jobs').insert(record)
-      if (error) throw error
+    let gasSuccess = false
+    let supabaseSuccess = false
+
+    // 1. Sync to Google Sheets (GAS)
+    if (hasGas) {
+      try {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(record)
+        })
+        gasSuccess = true
+      } catch (err) {
+        console.error('Offline sync to GAS failed:', err)
+      }
+    }
+
+    // 2. Sync to Supabase
+    if (hasSupabase) {
+      try {
+        const { error } = await supabase.from('jobs').insert(record)
+        if (!error) supabaseSuccess = true
+      } catch (err) {
+        console.error('Offline sync to Supabase failed:', err)
+      }
+    }
+
+    const isGasOk = !hasGas || gasSuccess
+    const isSupabaseOk = !hasSupabase || supabaseSuccess
+
+    if (isGasOk && isSupabaseOk) {
       dequeue(_id)
       synced++
       onProgress?.({ synced, failed, total: queue.length })
-    } catch {
+    } else {
       failed++
     }
   }
@@ -692,16 +727,58 @@ async function syncQueue(onProgress) {
 }
 
 async function saveJob(record, isOnline) {
-  if (!supabaseConfigured || !supabase || !isOnline) {
+  const gasUrl = import.meta.env.VITE_GAS_URL
+  const hasGas = !!gasUrl
+  const hasSupabase = !!(supabaseConfigured && supabase)
+
+  if (!isOnline) {
     enqueue(record)
     return { saved: 'offline' }
   }
 
-  try {
-    const { error } = await supabase.from('jobs').insert(record)
-    if (error) throw error
+  // If no database configured, fallback to offline local saving
+  if (!hasGas && !hasSupabase) {
+    enqueue(record)
+    return { saved: 'offline' }
+  }
+
+  let gasSaved = false
+  let supabaseSaved = false
+
+  // 1. Save to Google Sheets
+  if (hasGas) {
+    try {
+      await fetch(gasUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(record)
+      })
+      gasSaved = true
+    } catch (err) {
+      console.error('Failed to save to Google Sheets:', err)
+    }
+  }
+
+  // 2. Save to Supabase
+  if (hasSupabase) {
+    try {
+      const { error } = await supabase.from('jobs').insert(record)
+      if (!error) supabaseSaved = true
+    } catch (err) {
+      console.error('Failed to save to Supabase:', err)
+    }
+  }
+
+  // If either configured service succeeded, we consider it saved online
+  const isGasOk = !hasGas || gasSaved
+  const isSupabaseOk = !hasSupabase || supabaseSaved
+
+  if (isGasOk && isSupabaseOk) {
     return { saved: 'online' }
-  } catch {
+  } else {
     enqueue(record)
     return { saved: 'offline' }
   }
