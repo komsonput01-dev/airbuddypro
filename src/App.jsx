@@ -3117,6 +3117,69 @@ function SettingsPanel() {
             </div>
           </div>
 
+          {/* Cloud & AI Diagnostics Card */}
+          <div className="card p-5 space-y-3 bg-slate-900/30">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🔌</span> การเชื่อมต่อฐานข้อมูล & AI
+            </h3>
+            
+            <div className="space-y-3 pt-1">
+              {/* Google Sheets Status */}
+              <div className="flex flex-col gap-1.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300">ตารางข้อมูล Google Sheets</span>
+                  {import.meta.env.VITE_GAS_URL ? (
+                    <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold border border-green-500/30">ตั้งค่าแล้ว</span>
+                  ) : (
+                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold border border-red-500/30">ไม่ได้ตั้งค่า</span>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-500 font-mono break-all leading-relaxed">
+                  {import.meta.env.VITE_GAS_URL 
+                    ? import.meta.env.VITE_GAS_URL.substring(0, 45) + "..." 
+                    : "ไม่มีข้อมูล URL (โปรดเช็ค VITE_GAS_URL ในตัวแปร Vercel)"}
+                </p>
+                {import.meta.env.VITE_GAS_URL && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(import.meta.env.VITE_GAS_URL)
+                        if (res.ok) {
+                          alert("🟢 เชื่อมต่อสำเร็จ! สามารถเขียนและดึงประวัติ Google Sheets ได้แล้ว")
+                        } else {
+                          alert(`❌ เชื่อมต่อล้มเหลว: HTTP ${res.status}`)
+                        }
+                      } catch (err) {
+                        alert(`❌ เชื่อมต่อล้มเหลว: ${err.message}`)
+                      }
+                    }}
+                    className="mt-1 py-1.5 px-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-650 rounded-lg text-[10px] font-bold text-white text-center transition-colors border border-slate-700 cursor-pointer"
+                  >
+                    ทดสอบการดึงข้อมูล Google Sheets
+                  </button>
+                )}
+              </div>
+
+              {/* OpenAI Status */}
+              <div className="flex flex-col gap-1.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300">ตัวช่วยวิเคราะห์ AI (GPT)</span>
+                  {import.meta.env.VITE_OPENAI_API_KEY ? (
+                    <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold border border-green-500/30">ตั้งค่าแล้ว</span>
+                  ) : (
+                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold border border-red-500/30">ไม่ได้ตั้งค่า</span>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-500 font-mono break-all leading-relaxed">
+                  {import.meta.env.VITE_OPENAI_API_KEY 
+                    ? "sk-proj-..." + import.meta.env.VITE_OPENAI_API_KEY.substring(12, 24) + "..." 
+                    : "ไม่มีข้อมูล Key (โปรดเช็ค VITE_OPENAI_API_KEY ในตัวแปร Vercel)"}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="p-4 bg-sky-500/5 border border-sky-500/25 rounded-2xl space-y-2">
             <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
               <span>💡</span> ข้อมูลแอปลิเคชันสถิติ
