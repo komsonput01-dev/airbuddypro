@@ -1388,6 +1388,7 @@ function ElectricalCalculatorPanel() {
 
 // 3. Diagnostic Tab Component
 function DiagnosticPanel() {
+  const { appTheme } = useApp()
   const [subTab, setSubTab] = useState(0)
 
   // Subtab A: Checklist state
@@ -1983,6 +1984,32 @@ function DiagnosticPanel() {
           )}
         </div>
       </div>
+
+      {/* Danfoss Ref Tools Integration Button */}
+      <a
+        id="danfoss-ref-tools-btn"
+        href="https://reftools.danfoss.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all w-full text-left ${
+          appTheme === 'light'
+            ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+            : 'border-dashed border-sky-500 text-sky-400 bg-sky-950/20 hover:bg-sky-950/50'
+        }`}
+      >
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+          appTheme === 'light' ? 'bg-blue-100' : 'bg-sky-500/15'
+        }`}>
+          <span className="text-2xl">🔍</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-black text-base leading-tight">ตรวจสอบค่าสารทำความเย็นขั้นสูงผ่าน Danfoss</p>
+          <p className={`text-xs font-semibold mt-1 ${
+            appTheme === 'light' ? 'text-blue-500' : 'text-sky-600'
+          }`}>reftools.danfoss.com — เปิดในเบราว์เซอร์ภายนอก</p>
+        </div>
+        <ExternalLink size={18} className="shrink-0 opacity-70" />
+      </a>
     </div>
   )
 }
@@ -2399,32 +2426,6 @@ function JobLoggerPanel() {
                 )}
               </div>
             ))}
-
-            {/* Danfoss Ref Tools Integration Button */}
-            <a
-              id="danfoss-ref-tools-btn"
-              href="https://reftools.danfoss.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all w-full text-left ${
-                appTheme === 'light'
-                  ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
-                  : 'border-dashed border-sky-500 text-sky-400 bg-sky-950/20 hover:bg-sky-950/50'
-              }`}
-            >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                appTheme === 'light' ? 'bg-blue-100' : 'bg-sky-500/15'
-              }`}>
-                <span className="text-2xl">🔍</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-black text-base leading-tight">ตรวจสอบค่าสารทำความเย็นขั้นสูงผ่าน Danfoss</p>
-                <p className={`text-xs font-semibold mt-1 ${
-                  appTheme === 'light' ? 'text-blue-500' : 'text-sky-600'
-                }`}>reftools.danfoss.com — เปิดในเบราว์เซอร์ภายนอก</p>
-              </div>
-              <ExternalLink size={18} className="shrink-0 opacity-70" />
-            </a>
           </div>
         </div>
 
