@@ -291,13 +291,24 @@ const errorCodes = {
     },
     {
       code: 'U4',
-      description: 'ปัญหาแรงดันไฟฟ้าผิดปกติ',
-      cause: 'แรงดันไฟต่ำกว่า 190V หรือสูงกว่า 250V',
+      description: 'ระบบสื่อสารคอนโทรลขัดข้อง (Transmission Error)',
+      cause: 'สายสัญญาณสายหมายเลข 3 ขาด/หลวม / บอร์ดคอนโทรลฝั่งใดฝั่งหนึ่งเสีย',
       steps: [
-        'วัดแรงดันไฟที่เบรกเกอร์ ควรอยู่ 220±10%',
-        'ตรวจสอบสายไฟและขั้วต่อ',
-        'หากแรงดันไม่เสถียร แนะนำติดตั้ง Stabilizer',
-        'ติดต่อการไฟฟ้าหากพบแรงดันผิดปกติจากสายหลัก',
+        'วัดแรงดันไฟฟ้า DC ระหว่างขั้ว 2 และ 3 ควรได้ 12-24VDC',
+        'ตรวจสอบสายสัญญาณคอนโทรลและขั้วต่อทั้งสองญุด',
+        'Reset เครื่องโดยปิดเบรกเกอร์ 5 นาทีแล้วเปิดใหม่',
+        'หากยังเกิดโค้ดซ้ำ เปลี่ยน PCB เสียก่อนไปในเปลี่ยนรุ่นโดยเริ่มจาก Indoor',
+      ],
+    },
+    {
+      code: 'A6',
+      description: 'มอเตอร์พัดลมคอยล์เย็นทำงานผิดปกติ / ติดขัด (Fan Motor Lock)',
+      cause: 'มอเตอร์พัดลมกรงกระรอกไหม้ / แจ็คเสียบสายพัดลมหลวม / ตลับลูกปืนฝืดล็อกแน่น',
+      steps: [
+        'ตรวจสอบสิ่งกีดขวางใบพัดหรือรูเสียบตัวคนบังคับแอ็รฟิว',
+        'ถอดมอเตอร์ออก หมุนสัมภาษณ์ดูว่าตลับลูกปืนฝืดหรือไม่',
+        'ตรวจแจ็คเสียบสายมอเตอร์บน Main PCB ว่าเสียบแน่นดีหรือไม่',
+        'วัดความต้านทานขดลวดมอเตอร์ ถ้าผิดปกติเปลี่ยนมอเตอร์ใหม่',
       ],
     },
     {
@@ -314,25 +325,25 @@ const errorCodes = {
   ],
   Mitsubishi: [
     {
-      code: 'E6',
-      description: 'สัญญาณการสื่อสารผิดพลาด (Indoor ↔ Outdoor)',
-      cause: 'สายสัญญาณหลวม / ขั้วต่อออกซิไดซ์ / Noise จากไฟฟ้า',
+      code: 'E6 / ไฟกะพริบ 2 ครั้ง',
+      description: 'ระบบสื่อสารคอนโทรลขัดข้อง (Serial Signal Error)',
+      cause: 'สายสัญญาณเชื่อมต่อ Indoor-Outdoor ขาด / บอร์ดคอยล์ร้อนไม่มีไฟจ่ายเข้าบอร์ด (Power Supply พัง)',
       steps: [
-        'ตรวจสอบสาย S, S1, S2 ระหว่างยูนิต',
+        'ตรวจสอบสาย S, S1, S2 ระหว่างยูนิตในและนอกอย่างละเอียด',
+        'วัดแรงดันไฟเลี้ยง Outdoor PCB ควรได้ 220VAC',
         'ทำความสะอาดขั้วต่อด้วย Contact Cleaner',
-        'ตรวจสอบว่าสายสัญญาณไม่ได้เดินใกล้สายไฟ',
         'Reset PCB โดยปิดเบรกเกอร์ 1 นาที',
       ],
     },
     {
-      code: 'E7',
-      description: 'มอเตอร์พัดลมคอยล์ร้อนผิดปกติ',
-      cause: 'มอเตอร์เสีย / Capacitor มอเตอร์เสีย / สิ่งกีดขวาง',
+      code: 'E7 / ไฟกะพริบ 5 ครั้ง',
+      description: 'เซ็นเซอร์วัดอุณหภูมิแผงคอยล์เย็น (Thermistor) ขัดข้อง',
+      cause: 'ค่าความต้านทานเพี้ยน / เซ็นสายขาด/ช็อต (ปกติ ~10kΩ ที่อุณหภูมิห้อง)',
       steps: [
-        'ตรวจสอบว่าใบพัดไม่ถูกสิ่งกีดขวาง',
-        'วัด Capacitor มอเตอร์ ควรได้ตามค่าที่ระบุ ±10%',
-        'วัดความต้านทานขดลวดมอเตอร์',
-        'หากมอเตอร์ไม่หมุน เปลี่ยนมอเตอร์ใหม่',
+        'วัดค่าต้านทาน Thermistor ที่ 25°C ควรได้ประมาณ 10kΩ',
+        'ถ้าค่าผิดปกติ (0 หรือ ∞) ให้เปลี่ยนเซ็นเซอร์ทันที',
+        'ตรวจขั้วต่อและ Connector บน PCB ว่าแน่นดี',
+        'หากเปลี่ยนเซ็นแล้วยังเกิดโค้ด ให้เปลี่ยน Indoor PCB',
       ],
     },
     {
@@ -412,6 +423,17 @@ const errorCodes = {
         'ตรวจสอบสายสัญญาณ Indoor-Outdoor',
         'ตรวจสอบฟิวส์บน PCB Outdoor',
         'วัดแรงดัน 220V ที่ Compressor Contactor',
+      ],
+    },
+    {
+      code: 'Chg / CL',
+      description: 'สัญญาณแจ้งล้างแผ่นกรอง / ตรวจพบน้ำยารั่วไหล (Leakage Detection)',
+      cause: 'แอร์สกปรกจนน้ำยาเดินไม่สะดวก / จุดรั่วซึมทำให้น้ำยาพร่อง',
+      steps: [
+        'ตรวจสอบแรงดันน้ำยาต่ำ ถ้าต่ำผิดปกติหาจุดรั่ว',
+        'ตรวจสอบกระแสไฟฟ้าเทียบกับสเป็ค ถ้าสูงผิดปกติมีน้ำยาน้อย',
+        'ตรวจหาจุดรั่วด้วย Electronic Leak Detector',
+        'ล้างแผ่นกรองเพื่อล้าง Chg Indicator หากมี Clean ผังวาก',
       ],
     },
     {
@@ -608,7 +630,7 @@ const documents = [
   },
 ]
 
-const brands = ['Daikin', 'Mitsubishi', 'Carrier', 'Panasonic', 'Haier']
+const brands = ['Daikin', 'Mitsubishi', 'Carrier', 'Panasonic', 'Haier', 'LG', 'Toshiba', 'Samsung', 'Saijo Denki', 'Central Air']
 const types = ['Inverter', 'Fixed Speed']
 const categories = ['Installation', 'Wiring', 'Error Manuals']
 
@@ -630,11 +652,20 @@ export function AppProvider({ children }) {
   const [unitSystem, setUnitSystem] = useState(() => localStorage.getItem('abp_unit') || 'PSI')
   const [fontSize, setFontSize] = useState(() => localStorage.getItem('abp_font') || 'normal')
   const [powerSaving, setPowerSaving] = useState(() => localStorage.getItem('abp_power') === 'true')
+  const [appTheme, setAppTheme] = useState(() => localStorage.getItem('abp_theme') || 'dark')
   const [isOnline, setIsOnline] = useState(navigator.onLine)
 
   useEffect(() => { localStorage.setItem('abp_unit', unitSystem) }, [unitSystem])
   useEffect(() => { localStorage.setItem('abp_font', fontSize) }, [fontSize])
   useEffect(() => { localStorage.setItem('abp_power', powerSaving) }, [powerSaving])
+  useEffect(() => {
+    localStorage.setItem('abp_theme', appTheme)
+    document.documentElement.setAttribute('data-theme', appTheme)
+  }, [appTheme])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', appTheme)
+  }, [])
 
   useEffect(() => {
     document.documentElement.style.setProperty('--font-size-scale', 
@@ -668,6 +699,7 @@ export function AppProvider({ children }) {
       unitSystem, setUnitSystem,
       fontSize, setFontSize,
       powerSaving, setPowerSaving,
+      appTheme, setAppTheme,
       isOnline, setIsOnline
     }}>
       {children}
@@ -1511,7 +1543,7 @@ function DiagnosticPanel() {
 
 // 4. Job Logger & Refrigerant Table Tab Component
 function JobLoggerPanel() {
-  const { unitSystem, isOnline } = useApp()
+  const { unitSystem, isOnline, appTheme } = useApp()
   const { sharedBTU, scannedJobData, setScannedJobData } = useCalculator()
 
   const [subTab, setSubTab] = useState(0)
@@ -1921,6 +1953,32 @@ function JobLoggerPanel() {
                 )}
               </div>
             ))}
+
+            {/* Danfoss Ref Tools Integration Button */}
+            <a
+              id="danfoss-ref-tools-btn"
+              href="https://reftools.danfoss.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all w-full text-left ${
+                appTheme === 'light'
+                  ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                  : 'border-dashed border-sky-500 text-sky-400 bg-sky-950/20 hover:bg-sky-950/50'
+              }`}
+            >
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                appTheme === 'light' ? 'bg-blue-100' : 'bg-sky-500/15'
+              }`}>
+                <span className="text-2xl">🔍</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-base leading-tight">ตรวจสอบค่าสารทำความเย็นขั้นสูงผ่าน Danfoss</p>
+                <p className={`text-xs font-semibold mt-1 ${
+                  appTheme === 'light' ? 'text-blue-500' : 'text-sky-600'
+                }`}>reftools.danfoss.com — เปิดในเบราว์เซอร์ภายนอก</p>
+              </div>
+              <ExternalLink size={18} className="shrink-0 opacity-70" />
+            </a>
           </div>
         </div>
 
@@ -2552,7 +2610,7 @@ function DocumentLibraryPanel() {
 
 // 7. Settings Tab Component
 function SettingsPanel() {
-  const { unitSystem, setUnitSystem, fontSize, setFontSize, powerSaving, setPowerSaving } = useApp()
+  const { unitSystem, setUnitSystem, fontSize, setFontSize, powerSaving, setPowerSaving, appTheme, setAppTheme } = useApp()
 
   const fontOptions = [
     { label: 'ปกติ', value: 'normal' },
@@ -2570,6 +2628,67 @@ function SettingsPanel() {
         <div>
           <h1 className="text-xl font-bold text-white">ตั้งค่าระบบการทำงาน</h1>
           <p className="text-sm text-slate-400">ปรับเปลี่ยนการแสดงผลและโหมดประหยัดพลังงาน</p>
+        </div>
+      </div>
+
+      {/* ─── Theme Switcher Card ─────────────────────────────────────────── */}
+      <div className="card p-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
+            <span className="text-base">{appTheme === 'dark' ? '🌙' : '☀️'}</span>
+          </div>
+          <div>
+            <p className="text-base font-bold text-white">ธีมสีหน้าจอแบบสากล</p>
+            <p className="text-xs text-slate-400 font-semibold mt-0.5">เปลี่ยนโทนสีเพื่อให้เหมาะกับสภาพแสงหน้างาน</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            id="theme-dark-btn"
+            onClick={() => setAppTheme('dark')}
+            className={`relative p-4 rounded-2xl border-2 transition-all text-left ${
+              appTheme === 'dark'
+                ? 'border-sky-500 bg-sky-500/10'
+                : 'border-slate-700 bg-slate-900 opacity-60 hover:opacity-90'
+            }`}
+          >
+            {appTheme === 'dark' && (
+              <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-sky-500 flex items-center justify-center">
+                <span className="text-white text-[10px] font-black">✓</span>
+              </span>
+            )}
+            <div className="text-2xl mb-2">🌙</div>
+            <p className="text-sm font-black text-white leading-tight">Dark Mode</p>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">สู้แดดจัด ถนอมสายตา</p>
+            <div className="flex gap-1 mt-2.5">
+              <div className="w-5 h-2 rounded-full bg-slate-950" />
+              <div className="w-5 h-2 rounded-full bg-slate-800" />
+              <div className="w-5 h-2 rounded-full bg-sky-500" />
+            </div>
+          </button>
+          <button
+            id="theme-light-btn"
+            onClick={() => setAppTheme('light')}
+            className={`relative p-4 rounded-2xl border-2 transition-all text-left ${
+              appTheme === 'light'
+                ? 'border-blue-500 bg-blue-50/10'
+                : 'border-slate-700 bg-slate-900 opacity-60 hover:opacity-90'
+            }`}
+          >
+            {appTheme === 'light' && (
+              <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                <span className="text-white text-[10px] font-black">✓</span>
+              </span>
+            )}
+            <div className="text-2xl mb-2">☀️</div>
+            <p className="text-sm font-black text-white leading-tight">Light Mode</p>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">สะอาด คมชัด สำนักงาน</p>
+            <div className="flex gap-1 mt-2.5">
+              <div className="w-5 h-2 rounded-full bg-slate-100" />
+              <div className="w-5 h-2 rounded-full bg-white border border-slate-300" />
+              <div className="w-5 h-2 rounded-full bg-blue-600" />
+            </div>
+          </button>
         </div>
       </div>
 
@@ -2671,7 +2790,7 @@ function MainAppContent() {
   const [activeTab, setActiveTab] = useState(0)
 
   // System context properties
-  const { powerSaving, isOnline } = useApp()
+  const { powerSaving, isOnline, appTheme } = useApp()
 
   // Offline syncing indicator when coming back online
   useEffect(() => {
@@ -2682,12 +2801,16 @@ function MainAppContent() {
 
   return (
     <div className={`min-h-screen w-full flex ${
-      powerSaving ? 'bg-black text-white' : 'bg-slate-950 text-slate-100'
+      powerSaving ? 'bg-black text-white' :
+      appTheme === 'light' ? 'bg-slate-50 text-slate-900' :
+      'bg-slate-950 text-slate-100'
     } transition-colors duration-200`}>
 
       {/* Sidebar Navigation - Tablet & Desktop */}
-      <aside className={`hidden md:flex flex-col w-64 border-r border-slate-800/80 p-5 shrink-0 ${
-        powerSaving ? 'bg-black' : 'bg-slate-900/40 backdrop-blur-md'
+      <aside className={`hidden md:flex flex-col w-64 border-r p-5 shrink-0 ${
+        powerSaving ? 'bg-black border-slate-900' :
+        appTheme === 'light' ? 'bg-white border-slate-200' :
+        'border-slate-800/80 bg-slate-900/40 backdrop-blur-md'
       }`}>
         <div className="flex items-center gap-3 mb-8 px-2">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center shrink-0">
@@ -2695,7 +2818,9 @@ function MainAppContent() {
           </div>
           <div>
             <h1 className="font-black text-lg gradient-text tracking-tight leading-tight">Air Buddy Pro</h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">เครื่องมือสากลช่างไทย</p>
+            <p className={`text-[10px] font-bold uppercase tracking-wider ${
+              appTheme === 'light' ? 'text-slate-500' : 'text-slate-500'
+            }`}>เครื่องมือสากลช่างไทย</p>
           </div>
         </div>
 
@@ -2708,11 +2833,18 @@ function MainAppContent() {
                 onClick={() => setActiveTab(id)}
                 className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold transition-all text-left border tap-target ${
                   active
-                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 shadow-inner'
-                    : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+                    ? appTheme === 'light'
+                      ? 'bg-blue-600/10 border-blue-500/30 text-blue-600 shadow-inner'
+                      : 'bg-sky-500/10 border-sky-500/30 text-sky-400 shadow-inner'
+                    : appTheme === 'light'
+                      ? 'bg-transparent border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
                 }`}
               >
-                <Icon size={20} className={active ? 'text-sky-400' : 'text-slate-500'} />
+                <Icon size={20} className={active
+                  ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
+                  : appTheme === 'light' ? 'text-slate-400' : 'text-slate-500'
+                } />
                 <span className="text-base">{label}</span>
               </button>
             )
@@ -2737,8 +2869,10 @@ function MainAppContent() {
       {/* Main Panel Content Area */}
       <div className="flex-1 flex flex-col min-h-screen relative overflow-hidden">
         {/* Mobile Top Bar */}
-        <header className={`md:hidden flex items-center justify-between px-4 py-3.5 border-b border-slate-900 ${
-          powerSaving ? 'bg-black' : 'bg-slate-900/60 backdrop-blur-md'
+        <header className={`md:hidden flex items-center justify-between px-4 py-3.5 border-b ${
+          powerSaving ? 'bg-black border-slate-900' :
+          appTheme === 'light' ? 'bg-white border-slate-200' :
+          'border-slate-900 bg-slate-900/60 backdrop-blur-md'
         }`}>
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center shrink-0">
@@ -2790,8 +2924,10 @@ function MainAppContent() {
         </main>
 
         {/* Bottom Navigation - Mobile Devices */}
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-slate-900/60 ${
-          powerSaving ? 'bg-black' : 'bg-slate-950/90 backdrop-blur-lg'
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-50 border-t ${
+          powerSaving ? 'bg-black border-slate-900' :
+          appTheme === 'light' ? 'bg-white/95 backdrop-blur-lg border-slate-200' :
+          'border-slate-900/60 bg-slate-950/90 backdrop-blur-lg'
         }`}>
           <div className="flex items-stretch justify-around py-2 px-1 pb-[calc(4px+env(safe-area-inset-bottom,0px))]">
             {TABS.map(({ id, label, icon: Icon }) => {
@@ -2801,7 +2937,9 @@ function MainAppContent() {
                   key={id}
                   onClick={() => setActiveTab(id)}
                   className={`flex-1 flex flex-col items-center justify-center py-1 transition-all duration-150 tap-target ${
-                    active ? 'text-sky-400' : 'text-slate-500 active:text-slate-300'
+                    active
+                      ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
+                      : appTheme === 'light' ? 'text-slate-400 active:text-slate-700' : 'text-slate-500 active:text-slate-300'
                   }`}
                 >
                   <Icon size={active ? 22 : 18} className="mb-0.5" />
