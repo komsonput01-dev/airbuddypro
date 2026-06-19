@@ -2520,9 +2520,9 @@ function NameplateScannerPanel({ onNavigate }) {
   const [uploadedImage, setUploadedImage] = useState(null)
 
   const MOCK_RESULTS = [
-    { brand: 'Mitsubishi', model: 'MSY-KX13VF', serialNo: '24B098715', refrigerant: 'R32', notes: 'สแกนสำเร็จจากกล้องจำลอง AI' },
-    { brand: 'Daikin', model: 'FTKQ12UV2S', serialNo: '23A0045821', refrigerant: 'R32', notes: 'สแกนสำเร็จจากกล้องจำลอง AI' },
-    { brand: 'Carrier', model: '38MAQB012', serialNo: '22C003391', refrigerant: 'R410A', notes: 'สแกนสำเร็จจากกล้องจำลอง AI' },
+    { brand: 'Mitsubishi', model: 'MSY-KX13VF', serialNo: '24B098715', refrigerant: 'R32', notes: '' },
+    { brand: 'Daikin', model: 'FTKQ12UV2S', serialNo: '23A0045821', refrigerant: 'R32', notes: '' },
+    { brand: 'Carrier', model: '38MAQB012', serialNo: '22C003391', refrigerant: 'R410A', notes: '' },
   ]
 
   const startCamera = async () => {
