@@ -786,20 +786,39 @@ async function saveJob(record, isOnline) {
 
 async function fetchAllJobs() {
   const localJobs = JSON.parse(localStorage.getItem('abp_local_jobs') || '[]')
-  if (!supabaseConfigured || !supabase) {
-    return localJobs
+  const gasUrl = import.meta.env.VITE_GAS_URL
+  const hasGas = !!gasUrl
+  const hasSupabase = !!(supabaseConfigured && supabase)
+
+  let onlineJobs = []
+
+  if (hasGas) {
+    try {
+      const response = await fetch(gasUrl)
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          onlineJobs = data
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch jobs from Google Sheets:', err)
+    }
+  } else if (hasSupabase) {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (error) throw error
+      onlineJobs = data || []
+    } catch (err) {
+      console.error('Failed to fetch jobs from Supabase:', err)
+    }
   }
-  try {
-    const { data, error } = await supabase
-      .from('jobs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
-    if (error) throw error
-    return [...(data || []), ...localJobs]
-  } catch {
-    return localJobs
-  }
+
+  return [...onlineJobs, ...localJobs]
 }
 
 function saveJobLocally(record) {
