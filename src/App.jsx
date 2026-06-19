@@ -1427,18 +1427,9 @@ function DiagnosticPanel() {
         throw new Error('ไม่พบ OpenAI API Key ในระบบ กรุณาตั้งค่า VITE_OPENAI_API_KEY ในไฟล์ .env.local')
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `คุณคือ "Air Buddy Pro AI" ผู้ช่วยช่างแอร์อัจฉริยะและผู้เชี่ยวชาญด้านระบบปรับอากาศ (Air Conditioning Specialist) ในไทย
+      const response = await (async () => {
+        const gasUrl = import.meta.env.VITE_GAS_URL
+        const systemPrompt = `คุณคือ "Air Buddy Pro AI" ผู้ช่วยช่างแอร์อัจฉริยะและผู้เชี่ยวชาญด้านระบบปรับอากาศ (Air Conditioning Specialist) ในไทย
 หน้าที่ของคุณคือ:
 1. ตอบคำถามเกี่ยวกับการวิเคราะห์อาการเสีย รหัสเออร์เรอร์โค้ด (Error Code) และแนวทางแก้ไขปัญหาเกี่ยวกับเครื่องปรับอากาศทุกแบรนด์ (เช่น Daikin, Mitsubishi, LG, Carrier, Panasonic เป็นต้น)
 2. อธิบายขั้นตอนการตรวจเช็คทางเทคนิค (เช่น การวัดกระแสไฟฟ้า การวัดแรงดันน้ำยา การตรวจสอบสัญญาณสื่อสาร) อย่างเป็นลำดับขั้นตอน 1, 2, 3 ชัดเจนและเข้าใจง่าย
@@ -1446,19 +1437,44 @@ function DiagnosticPanel() {
 4. หากผู้ใช้ระบุแบรนด์แอร์ ให้ใช้ความรู้เฉพาะของแบรนด์นั้นๆ ในการตอบ
 5. หลีกเลี่ยงข้อความที่ยาวเกินไป ให้เน้นเนื้อหาที่เป็นขั้นตอนปฏิบัติจริง (Actionable Steps)
 6. หากแอร์มีอันตราย (เช่น แรงดันสูง, สารทำความเย็นไวไฟ R32, หรือเกี่ยวข้องกับกระแสไฟฟ้าสูง) ให้มีคำเตือนเรื่องความปลอดภัยสั้นๆ เสมอ`
+        const userPrompt = `คำถาม: ${aiQuery} ${brandContext ? `(${brandContext})` : ''}`
+
+        if (gasUrl) {
+          // Route through Google Apps Script as a proxy to avoid browser CORS and network blocks
+          return await fetch(gasUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain',
             },
-            {
-              role: 'user',
-              content: `คำถาม: ${aiQuery} ${brandContext ? `(${brandContext})` : ''}`
-            }
-          ],
-          temperature: 0.7
-        })
-      })
+            body: JSON.stringify({
+              action: 'askAi',
+              apiKey: apiKey,
+              prompt: userPrompt,
+              systemPrompt: systemPrompt
+            })
+          })
+        } else {
+          // Fallback direct request (may be blocked by CORS in some browsers)
+          return await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+              temperature: 0.7
+            })
+          })
+        }
+      })()
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json()
