@@ -5,7 +5,7 @@ import {
   AlertCircle, Search, ChevronDown, ChevronUp, RotateCcw,
   AlertTriangle, Plus, Save, Copy, Check, MessageCircle,
   Wifi, WifiOff, Trash2, FileText, ExternalLink, Clock, X,
-  Eye, Star, Download, ImagePlus
+  Eye, Star, Download, ImagePlus, Brain, Sparkles, Send
 } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 
@@ -1263,6 +1263,137 @@ function DiagnosticPanel() {
   // Question history stack for back navigation
   const [questionHistory, setQuestionHistory] = useState([])
 
+  // AI Smart Search state
+  const [isAiMode, setIsAiMode] = useState(false)
+  const [aiQuery, setAiQuery] = useState('')
+  const [aiResponse, setAiResponse] = useState('')
+  const [isAiLoading, setIsAiLoading] = useState(false)
+  const [aiHistory, setAiHistory] = useState([])
+
+  const handleAiSearch = async (e) => {
+    if (e) e.preventDefault()
+    if (!aiQuery.trim() || isAiLoading) return
+
+    setIsAiLoading(true)
+    setAiResponse('')
+
+    const brandContext = brand ? `แบรนด์เครื่องปรับอากาศ: ${brand}` : ''
+
+    try {
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+      if (!apiKey) {
+        throw new Error('ไม่พบ OpenAI API Key ในระบบ กรุณาตั้งค่า VITE_OPENAI_API_KEY ในไฟล์ .env.local')
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `คุณคือ "Air Buddy Pro AI" ผู้ช่วยช่างแอร์อัจฉริยะและผู้เชี่ยวชาญด้านระบบปรับอากาศ (Air Conditioning Specialist) ในไทย
+หน้าที่ของคุณคือ:
+1. ตอบคำถามเกี่ยวกับการวิเคราะห์อาการเสีย รหัสเออร์เรอร์โค้ด (Error Code) และแนวทางแก้ไขปัญหาเกี่ยวกับเครื่องปรับอากาศทุกแบรนด์ (เช่น Daikin, Mitsubishi, LG, Carrier, Panasonic เป็นต้น)
+2. อธิบายขั้นตอนการตรวจเช็คทางเทคนิค (เช่น การวัดกระแสไฟฟ้า การวัดแรงดันน้ำยา การตรวจสอบสัญญาณสื่อสาร) อย่างเป็นลำดับขั้นตอน 1, 2, 3 ชัดเจนและเข้าใจง่าย
+3. ใช้ภาษาไทยที่เป็นกันเองแบบมืออาชีพ สุภาพ เหมาะสมกับช่างเทคนิคภาคสนาม
+4. หากผู้ใช้ระบุแบรนด์แอร์ ให้ใช้ความรู้เฉพาะของแบรนด์นั้นๆ ในการตอบ
+5. หลีกเลี่ยงข้อความที่ยาวเกินไป ให้เน้นเนื้อหาที่เป็นขั้นตอนปฏิบัติจริง (Actionable Steps)
+6. หากแอร์มีอันตราย (เช่น แรงดันสูง, สารทำความเย็นไวไฟ R32, หรือเกี่ยวข้องกับกระแสไฟฟ้าสูง) ให้มีคำเตือนเรื่องความปลอดภัยสั้นๆ เสมอ`
+            },
+            {
+              role: 'user',
+              content: `คำถาม: ${aiQuery} ${brandContext ? `(${brandContext})` : ''}`
+            }
+          ],
+          temperature: 0.7
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      const reply = data.choices[0]?.message?.content || 'ไม่พบคำตอบจาก AI'
+      setAiResponse(reply)
+      setAiHistory(prev => [{ query: aiQuery, response: reply, brand: brand }, ...prev].slice(0, 5))
+    } catch (err) {
+      console.error(err)
+      setAiResponse(`❌ เกิดข้อผิดพลาด: ${err.message}`)
+    } finally {
+      setIsAiLoading(false)
+    }
+  }
+
+  const renderFormattedAiResponse = (text) => {
+    if (!text) return null
+    const lines = text.split('\n')
+    return lines.map((line, idx) => {
+      if (line.trim().startsWith('###')) {
+        return (
+          <h4 key={idx} className="text-xs font-black text-white mt-3 mb-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400" /> {line.replace(/###\s*/, '').replace(/\*\*/g, '')}
+          </h4>
+        )
+      }
+      if (line.trim().startsWith('##')) {
+        return (
+          <h3 key={idx} className="text-sm font-black text-white mt-4 mb-2 border-b border-slate-800 pb-1">
+            {line.replace(/##\s*/, '').replace(/\*\*/g, '')}
+          </h3>
+        )
+      }
+      if (line.trim().startsWith('#')) {
+        return (
+          <h2 key={idx} className="text-base font-black text-white mt-4 mb-2">
+            {line.replace(/#\s*/, '').replace(/\*\*/g, '')}
+          </h2>
+        )
+      }
+      
+      const isBullet = line.trim().startsWith('-') || line.trim().startsWith('*')
+      const isNumbered = /^\d+\./.test(line.trim())
+      
+      if (isBullet) {
+        return (
+          <div key={idx} className="flex gap-2 text-slate-300 ml-2 py-0.5 font-semibold">
+            <span className="text-red-400 flex-shrink-0 mt-1">•</span>
+            <span>{line.replace(/^[-*]\s*/, '').replace(/\*\*/g, '')}</span>
+          </div>
+        )
+      }
+      
+      if (isNumbered) {
+        const match = line.trim().match(/^(\d+)\.\s*(.*)/)
+        if (match) {
+          return (
+            <div key={idx} className="flex gap-2 text-slate-300 ml-2 py-0.5 font-semibold">
+              <span className="text-red-400 font-bold flex-shrink-0">{match[1]}.</span>
+              <span>{match[2].replace(/\*\*/g, '')}</span>
+            </div>
+          )
+        }
+      }
+      
+      if (line.includes('**')) {
+        const parts = line.split('**')
+        return (
+          <p key={idx} className="min-h-[1rem]">
+            {parts.map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="font-black text-white">{part}</strong> : part)}
+          </p>
+        )
+      }
+      
+      return <p key={idx} className="min-h-[1rem]">{line}</p>
+    })
+  }
+
   const handleSymptom = (id) => {
     setSymptom(id)
     setAnswers({})
@@ -1462,11 +1593,39 @@ function DiagnosticPanel() {
           )}
         </div>
 
-        {/* Right Column: Error Code Search */}
+        {/* Right Column: Error Code Search & AI Assistant */}
         <div className="card p-5 space-y-4">
-          <h2 className="text-base font-black text-white border-b border-slate-800 pb-2 flex items-center gap-2">
-            <span>📟</span> ค้นหารหัสเออร์เรอร์โค้ด
-          </h2>
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h2 className="text-base font-black text-white flex items-center gap-2">
+              {isAiMode ? (
+                <>
+                  <span className="text-red-400">🤖</span> ถาม AI วิเคราะห์อาการ
+                </>
+              ) : (
+                <>
+                  <span>📟</span> ค้นหารหัสเออร์เรอร์โค้ด
+                </>
+              )}
+            </h2>
+
+            {/* Mode Switcher */}
+            <div className="flex bg-slate-900/60 p-0.5 rounded-lg border border-slate-800">
+              <button
+                type="button"
+                onClick={() => { setIsAiMode(false); setExpandedCode(null); }}
+                className={`py-1 px-2.5 rounded-md text-[10px] font-bold transition-all duration-200 tap-target flex items-center gap-1 ${!isAiMode ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-slate-400 hover:text-white border border-transparent'}`}
+              >
+                <Search size={10} /> โค้ดปกติ
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsAiMode(true); }}
+                className={`py-1 px-2.5 rounded-md text-[10px] font-bold transition-all duration-200 tap-target flex items-center gap-1 ${isAiMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-slate-400 hover:text-white border border-transparent'}`}
+              >
+                <Zap size={10} className={isAiMode ? "animate-pulse text-red-400" : ""} /> วิเคราะห์ด้วย AI
+              </button>
+            </div>
+          </div>
 
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             {brands.map(b => (
@@ -1481,66 +1640,206 @@ function DiagnosticPanel() {
             ))}
           </div>
 
-          <div className="relative">
-            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              id="errc-search"
-              type="text"
-              placeholder="พิมพ์โค้ด เช่น U4, L5 หรือพิมพ์เพื่อค้นหา..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="input-field pl-10 pr-10 text-base"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors tap-target p-1"
-              >
-                <X size={16} />
-              </button>
-            )}
-          </div>
+          {isAiMode ? (
+            <div className="space-y-4">
+              <form onSubmit={handleAiSearch} className="space-y-3">
+                <div className="relative">
+                  <input
+                    id="ai-search-input"
+                    type="text"
+                    placeholder={`ถาม AI สำหรับแอร์ ${brand} (เช่น "เปิดไม่ติดไฟกะพริบ", "รหัส U4 คืออะไร")...`}
+                    value={aiQuery}
+                    onChange={e => setAiQuery(e.target.value)}
+                    className="input-field pl-3 pr-10 text-sm"
+                  />
+                  {aiQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setAiQuery('')}
+                      className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors tap-target p-1"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isAiLoading || !aiQuery.trim()}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-300 disabled:text-slate-600 transition-colors tap-target"
+                  >
+                    {isAiLoading ? (
+                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <ArrowRight size={18} />
+                    )}
+                  </button>
+                </div>
+              </form>
 
-          <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-1">
-            {filteredCodes.length === 0 && (
-              <div className="text-center py-10 text-slate-500">
-                <Search size={36} className="mx-auto mb-2 opacity-20" />
-                <p className="text-sm font-semibold">ไม่พบข้อมูลเออร์เรอร์ที่ค้นหา</p>
-              </div>
-            )}
-            {filteredCodes.map(c => (
-              <div key={c.code} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
-                <button
-                  className="w-full flex items-center justify-between p-4 text-left tap-target"
-                  onClick={() => setExpandedCode(expandedCode === c.code ? null : c.code)}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="mono font-black text-red-400 text-lg w-10">{c.code}</span>
-                    <div>
-                      <p className="text-sm font-black text-white leading-snug">{c.description}</p>
-                      <p className="text-xs text-slate-400 mt-1 font-semibold">สาเหตุ: {c.cause}</p>
-                    </div>
+              {isAiLoading && (
+                <div className="card p-5 border border-slate-800 bg-slate-900/30 flex flex-col items-center justify-center space-y-3 py-10">
+                  <div className="relative w-10 h-10">
+                    <div className="absolute inset-0 border-4 border-red-500/20 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
                   </div>
-                  {expandedCode === c.code
-                    ? <ChevronDown size={16} className="text-slate-500 flex-shrink-0" />
-                    : <ChevronRight size={16} className="text-slate-500 flex-shrink-0" />}
-                </button>
-                {expandedCode === c.code && (
-                  <div className="border-t border-slate-800/80 bg-slate-950/40 px-4 py-3.5 space-y-2.5">
-                    <p className="text-xs font-bold text-sky-400 uppercase tracking-wider border-b border-slate-800 pb-1.5">
-                      ขั้นตอนวินิจฉัยและแนวทางซ่อมแซม
-                    </p>
-                    {c.steps.map((step, idx) => (
-                      <div key={idx} className="flex gap-2 text-sm leading-relaxed text-slate-300 font-semibold">
-                        <span className="mono text-xs font-black text-sky-500 flex-shrink-0 w-4">{idx + 1}.</span>
-                        <span>{step}</span>
-                      </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-white animate-pulse">AI กำลังวิเคราะห์ข้อมูลการซ่อม...</p>
+                    <p className="text-xs text-slate-500 mt-1">กรุณารอสักครู่ ระบบกำลังเรียกประมวลผลข้อมูล</p>
+                  </div>
+                </div>
+              )}
+
+              {!isAiLoading && aiResponse && (
+                <div className="card-highlight p-4 border border-red-500/20 bg-slate-900/50 space-y-3 animate-fadeInDown max-h-[380px] overflow-y-auto pr-1">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-red-400" />
+                      <span className="text-xs font-black text-white">วิเคราะห์ผลลัพธ์โดย AI</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(aiResponse);
+                        alert('คัดลอกคำตอบไปที่ Clipboard แล้ว');
+                      }}
+                      className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-white font-bold bg-slate-800 px-2 py-1 rounded-lg border border-slate-700 active:bg-slate-700 transition-all"
+                    >
+                      <Copy size={10} />
+                      คัดลอกคำตอบ
+                    </button>
+                  </div>
+                  
+                  <div className="text-xs text-slate-200 leading-relaxed font-semibold space-y-2.5">
+                    {renderFormattedAiResponse(aiResponse)}
+                  </div>
+
+                  <div className="text-[9px] text-slate-500 font-bold border-t border-slate-800/80 pt-2 flex items-center gap-1">
+                    <AlertCircle size={9} />
+                    <span>คำแนะนำจาก AI เป็นแนวทางเบื้องต้น ช่างเทคนิคควรตรวจสอบความปลอดภัยหน้างาน</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Show sample questions in AI Mode when no response and not loading */}
+              {!isAiLoading && !aiResponse && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">💡 ตัวอย่างการถามตอบวิเคราะห์อาการ</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      `แอร์ ${brand} รหัส U4 เกิดจากอะไร และแก้ไขอย่างไร`,
+                      `คอมเพรสเซอร์แอร์ ${brand} ร้อนแต่พัดลมไม่หมุน`,
+                      `พัดลมคอยล์เย็นของ ${brand} หมุนช้ากระแสตก`,
+                      `แอร์มีกลิ่นอับและไม่เย็นเกิดจากจุดไหนได้บ้าง`
+                    ].map((q, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => { setAiQuery(q); }}
+                        className="w-full text-left px-3.5 py-2.5 rounded-xl bg-slate-900/40 border border-slate-800/80 hover:border-slate-700 active:bg-slate-800 transition-all text-xs font-bold text-slate-300 hover:text-white"
+                      >
+                        {q}
+                      </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Show history if any */}
+              {aiHistory.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">🕒 ประวัติคำถาม AI ล่าสุด</p>
+                    <button
+                      type="button"
+                      onClick={() => setAiHistory([])}
+                      className="text-[9px] text-red-400 hover:text-red-300 font-bold"
+                    >
+                      ล้างประวัติ
+                    </button>
+                  </div>
+                  <div className="space-y-1 max-h-[150px] overflow-y-auto pr-1">
+                    {aiHistory.map((hist, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setAiQuery(hist.query);
+                          setAiResponse(hist.response);
+                          setBrand(hist.brand);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg bg-slate-900/30 border border-slate-800/50 hover:border-slate-800 hover:bg-slate-800/30 active:bg-slate-800 transition-all text-xs font-semibold text-slate-400 hover:text-slate-200 truncate flex items-center justify-between"
+                      >
+                        <span className="truncate">"{hist.query}" ({hist.brand})</span>
+                        <ChevronRight size={10} className="text-slate-500 flex-shrink-0 ml-1" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="relative">
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  id="errc-search"
+                  type="text"
+                  placeholder="พิมพ์โค้ด เช่น U4, L5 หรือพิมพ์เพื่อค้นหา..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="input-field pl-10 pr-10 text-base"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors tap-target p-1"
+                  >
+                    <X size={16} />
+                  </button>
                 )}
               </div>
-            ))}
-          </div>
+
+              <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-1">
+                {filteredCodes.length === 0 && (
+                  <div className="text-center py-10 text-slate-500">
+                    <Search size={36} className="mx-auto mb-2 opacity-20" />
+                    <p className="text-sm font-semibold">ไม่พบข้อมูลเออร์เรอร์ที่ค้นหา</p>
+                  </div>
+                )}
+                {filteredCodes.map(c => (
+                  <div key={c.code} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
+                    <button
+                      className="w-full flex items-center justify-between p-4 text-left tap-target"
+                      onClick={() => setExpandedCode(expandedCode === c.code ? null : c.code)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="mono font-black text-red-400 text-lg w-10">{c.code}</span>
+                        <div>
+                          <p className="text-sm font-black text-white leading-snug">{c.description}</p>
+                          <p className="text-xs text-slate-400 mt-1 font-semibold">สาเหตุ: {c.cause}</p>
+                        </div>
+                      </div>
+                      {expandedCode === c.code
+                        ? <ChevronDown size={16} className="text-slate-500 flex-shrink-0" />
+                        : <ChevronRight size={16} className="text-slate-500 flex-shrink-0" />}
+                    </button>
+                    {expandedCode === c.code && (
+                      <div className="border-t border-slate-800/80 bg-slate-950/40 px-4 py-3.5 space-y-2.5">
+                        <p className="text-xs font-bold text-sky-400 uppercase tracking-wider border-b border-slate-800 pb-1.5">
+                          ขั้นตอนวินิจฉัยและแนวทางซ่อมแซม
+                        </p>
+                        {c.steps.map((step, idx) => (
+                          <div key={idx} className="flex gap-2 text-sm leading-relaxed text-slate-300 font-semibold">
+                            <span className="mono text-xs font-black text-sky-500 flex-shrink-0 w-4">{idx + 1}.</span>
+                            <span>{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
