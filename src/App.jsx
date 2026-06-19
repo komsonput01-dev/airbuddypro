@@ -513,6 +513,7 @@ const documents = [
     category: 'Installation', title: 'คู่มือติดตั้ง Daikin FTKQ Series (Inverter)',
     description: 'ขั้นตอนการติดตั้งอย่างละเอียด ระยะท่อ น้ำยา R32',
     pages: 48, year: 2023, popular: true,
+    url: '/manuals/daikin-ftkq-installation.pdf',
   },
   {
     id: 'd2', brand: 'Daikin', model: 'FTKQ Series', type: 'Inverter',
@@ -533,10 +534,11 @@ const documents = [
     pages: 36, year: 2019, popular: false,
   },
   {
-    id: 'm1', brand: 'Mitsubishi', model: 'MSY-KX Series', type: 'Inverter',
-    category: 'Installation', title: 'Installation Manual Mitsubishi MSY-KX (R32)',
-    description: 'ขั้นตอนการติดตั้งพร้อมค่า Torque การขันท่อน้ำยา',
-    pages: 52, year: 2022, popular: true,
+    id: 'm1', brand: 'Mitsubishi', model: 'MSY-Z Series', type: 'Inverter',
+    category: 'Wiring', title: 'Wiring & Electrical Manual - Mitsubishi MSY-Z Series',
+    description: 'ไดอะแกรมสายไฟและข้อกำหนดทางไฟฟ้าครบ MSY-Z Inverter',
+    pages: 36, year: 2022, popular: true,
+    url: '/manuals/mitsubishi-msyz-wiring.pdf',
   },
   {
     id: 'm2', brand: 'Mitsubishi', model: 'MSY-KX Series', type: 'Inverter',
@@ -557,10 +559,11 @@ const documents = [
     pages: 28, year: 2015, popular: false,
   },
   {
-    id: 'c1', brand: 'Carrier', model: '38/40MAQB', type: 'Inverter',
-    category: 'Installation', title: 'Carrier Inverter 38/40MAQB Installation Guide',
-    description: 'ขั้นตอนการติดตั้งแอร์ Carrier Inverter รุ่นขายดี',
-    pages: 44, year: 2023, popular: true,
+    id: 'c1', brand: 'Carrier', model: 'X-Power Series', type: 'Inverter',
+    category: 'Error Manuals', title: 'Error Code Service Manual - Carrier X-Power Series',
+    description: 'Error Code CHG/CL/E1-F9 พร้อมขั้นตอนวินิจฉัย X-Power ทุกรุ่น',
+    pages: 62, year: 2023, popular: true,
+    url: '/manuals/carrier-xpower-error-manual.pdf',
   },
   {
     id: 'c2', brand: 'Carrier', model: '38/40MAQB', type: 'Inverter',
@@ -569,10 +572,10 @@ const documents = [
     pages: 32, year: 2023, popular: false,
   },
   {
-    id: 'c3', brand: 'Carrier', model: 'All Series', type: 'Inverter',
-    category: 'Error Manuals', title: 'Carrier Error Code Full List (E1-F9)',
-    description: 'รายการ Error Code ครบสำหรับ Carrier ทุกซีรีส์',
-    pages: 80, year: 2024, popular: false,
+    id: 'c3', brand: 'Carrier', model: '38/40MAQB', type: 'Inverter',
+    category: 'Installation', title: 'Carrier Inverter 38/40MAQB Installation Guide',
+    description: 'ขั้นตอนการติดตั้งแอร์ Carrier Inverter รุ่นขายดี',
+    pages: 44, year: 2023, popular: false,
   },
   {
     id: 'c4', brand: 'Carrier', model: '42/38QHV', type: 'Fixed Speed',
@@ -581,10 +584,11 @@ const documents = [
     pages: 30, year: 2018, popular: false,
   },
   {
-    id: 'p1', brand: 'Panasonic', model: 'CS-XU Series', type: 'Inverter',
-    category: 'Installation', title: 'คู่มือติดตั้ง Panasonic Inverter XU Series',
-    description: 'ขั้นตอนการติดตั้ง Panasonic nanoe™X รุ่นล่าสุด',
-    pages: 56, year: 2024, popular: true,
+    id: 'p1', brand: 'Panasonic', model: 'CU Series', type: 'Inverter',
+    category: 'Installation', title: 'Installation Guide - Panasonic CU Series Inverter',
+    description: 'ขั้นตอนการติดตั้ง Panasonic CU Series ครบวงจร',
+    pages: 44, year: 2024, popular: true,
+    url: '/manuals/panasonic-cu-installation.pdf',
   },
   {
     id: 'p2', brand: 'Panasonic', model: 'CS-XU Series', type: 'Inverter',
@@ -605,10 +609,11 @@ const documents = [
     pages: 32, year: 2020, popular: false,
   },
   {
-    id: 'h1', brand: 'Haier', model: 'HSU-INVT Series', type: 'Inverter',
-    category: 'Installation', title: 'คู่มือติดตั้ง Haier Inverter INVT',
-    description: 'ขั้นตอนการติดตั้งครบถ้วน Haier Inverter R32/R410A',
-    pages: 40, year: 2023, popular: false,
+    id: 'h1', brand: 'Haier', model: 'HSU Series', type: 'Fixed Speed',
+    category: 'Wiring', title: 'Wiring Diagram Manual - Haier HSU Fixed Speed',
+    description: 'ไดอะแกรมสายไฟ Haier HSU Fixed Speed ครบวงจร R22/R32',
+    pages: 28, year: 2023, popular: false,
+    url: '/manuals/haier-hsu-wiring-diagram.pdf',
   },
   {
     id: 'h2', brand: 'Haier', model: 'HSU-INVT Series', type: 'Inverter',
@@ -629,6 +634,7 @@ const documents = [
     pages: 28, year: 2016, popular: false,
   },
 ]
+
 
 const brands = ['Daikin', 'Mitsubishi', 'Carrier', 'Panasonic', 'Haier', 'LG', 'Toshiba', 'Samsung', 'Saijo Denki', 'Central Air']
 const types = ['Inverter', 'Fixed Speed']
@@ -2400,18 +2406,40 @@ function DocumentLibraryPanel() {
               ← ย้อนกลับ
             </button>
             <h2 className="text-base font-bold text-white leading-snug">{viewedDoc.title}</h2>
+            {viewedDoc.url && (
+              <a
+                href={viewedDoc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold hover:bg-sky-500/25"
+              >
+                <ExternalLink size={12} />
+                เปิดในแท็บใหม่
+              </a>
+            )}
           </div>
 
-          <div className="aspect-[3/4] max-w-sm mx-auto bg-slate-950 border border-slate-900 rounded-2xl flex flex-col items-center justify-center gap-4 text-center p-4">
-            <FileText size={56} className="text-slate-700 animate-pulse" />
-            <div>
-              <p className="text-sm font-bold text-white">{viewedDoc.brand} — {viewedDoc.model}</p>
-              <p className="text-xs text-slate-500 mt-1 font-semibold">{viewedDoc.pages} หน้า · ปี {viewedDoc.year}</p>
-              <p className="text-xs text-slate-600 mt-4 leading-relaxed font-semibold">
-                (การจำลองคู่มือ: โหลด API ของแท้ผ่านระบบ Cloud Storage)
-              </p>
+          {viewedDoc.url ? (
+            <div className="w-full rounded-xl overflow-hidden border border-slate-800" style={{ height: '70vh' }}>
+              <iframe
+                src={viewedDoc.url}
+                title={viewedDoc.title}
+                className="w-full h-full"
+                style={{ minHeight: '500px' }}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="aspect-[3/4] max-w-sm mx-auto bg-slate-950 border border-slate-900 rounded-2xl flex flex-col items-center justify-center gap-4 text-center p-4">
+              <FileText size={56} className="text-slate-700 animate-pulse" />
+              <div>
+                <p className="text-sm font-bold text-white">{viewedDoc.brand} — {viewedDoc.model}</p>
+                <p className="text-xs text-slate-500 mt-1 font-semibold">{viewedDoc.pages} หน้า · ปี {viewedDoc.year}</p>
+                <p className="text-xs text-slate-600 mt-4 leading-relaxed font-semibold">
+                  ไฟล์ PDF ยังไม่ได้อัพโหลดสำหรับรายการนี้
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
@@ -2558,16 +2586,30 @@ function DocumentLibraryPanel() {
                         <span className="badge badge-blue text-[9px]">{doc.type}</span>
                         <span className="badge badge-orange text-[9px]">{doc.category}</span>
                       </div>
-                      <div className="flex items-center gap-2 mt-3">
-                        <button
-                          id={`doc-view-${doc.id}`}
-                          onClick={() => { addRecent(doc); setViewedDoc(doc) }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold hover:bg-sky-500/25 transition-all tap-target"
-                          title="เปิดอ่าน"
-                        >
-                          <Eye size={12} />
-                          เปิดอ่าน
-                        </button>
+                        {doc.url ? (
+                          <a
+                            id={`doc-view-${doc.id}`}
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => addRecent(doc)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold hover:bg-sky-500/25 transition-all tap-target"
+                            title="เปิดอ่าน PDF"
+                          >
+                            <Eye size={12} />
+                            เปิดอ่าน PDF
+                          </a>
+                        ) : (
+                          <button
+                            id={`doc-view-${doc.id}`}
+                            onClick={() => { addRecent(doc); setViewedDoc(doc) }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700/50 border border-slate-700 text-slate-400 text-xs font-bold transition-all tap-target"
+                            title="ดูรายละเอียด"
+                          >
+                            <Eye size={12} />
+                            รายละเอียด
+                          </button>
+                        )}
                         <button
                           id={`doc-bookmark-${doc.id}`}
                           onClick={() => addRecent(doc)}
