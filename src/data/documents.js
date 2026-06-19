@@ -39,8 +39,32 @@ export const documents = [
     pages: 28, year: 2023, popular: false,
     url: '/manuals/haier-hsu-wiring-diagram.pdf',
   },
+  // LG
+  {
+    id: 'l1', brand: 'LG', model: 'General Inverter', type: 'Inverter',
+    category: 'Error Manuals', title: 'คู่มือรหัสข้อผิดพลาด LG Error Code (Inverter)',
+    description: 'โค้ดรหัสแสดงข้อบกพร่อง วิธีแก้ไขและการวินิจฉัยอาการเสียแอร์ LG',
+    pages: 35, year: 2023, popular: true,
+    url: '/manuals/Lg-Error-Code.pdf',
+  },
+  // TOSHIBA
+  {
+    id: 't1', brand: 'Toshiba', model: 'RAS Series', type: 'Inverter',
+    category: 'Installation', title: 'Installation Manual - Toshiba RAS Series',
+    description: 'คู่มือการติดตั้งและการบริการเครื่องปรับอากาศ Toshiba RAS Series',
+    pages: 52, year: 2022, popular: false,
+    url: '/manuals/TOSHIBA RAS Series Manual.pdf',
+  },
+  // SAMSUNG
+  {
+    id: 's1', brand: 'Samsung', model: 'DB68-12570A', type: 'Inverter',
+    category: 'Installation', title: 'คู่มือติดตั้ง Samsung DB68-12570A (ภาษาไทย)',
+    description: 'ขั้นตอนการติดตั้ง การเดินท่อสายไฟ และคำแนะนำการติดตั้งภาษาไทย',
+    pages: 40, year: 2023, popular: false,
+    url: '/manuals/samsung_DB68-12570A_TH.pdf',
+  },
 ]
 
-export const brands = ['Daikin', 'Mitsubishi', 'Carrier', 'Panasonic', 'Haier']
+export const brands = ['Daikin', 'Mitsubishi', 'Carrier', 'Panasonic', 'Haier', 'LG', 'Toshiba', 'Samsung']
 export const types = ['Inverter', 'Fixed Speed']
 export const categories = ['Installation', 'Wiring', 'Error Manuals']
