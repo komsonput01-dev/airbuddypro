@@ -686,13 +686,12 @@ const types = ['Inverter', 'Fixed Speed']
 const categories = ['Installation', 'Wiring', 'Error Manuals']
 
 const TABS = [
-  { id: 0, label: 'BTU', icon: Wind },
-  { id: 1, label: 'ไฟฟ้า', icon: Zap },
-  { id: 2, label: 'วินิจฉัย', icon: Stethoscope },
-  { id: 3, label: 'บันทึกงาน', icon: BookOpen },
-  { id: 4, label: 'สแกน', icon: Camera },
-  { id: 5, label: 'คลังคู่มือ', icon: Library },
-  { id: 6, label: 'ตั้งค่า', icon: Settings },
+  { id: 0, label: 'คำนวณ', icon: Wind },
+  { id: 1, label: 'วิเคราะห์อาการ', icon: Stethoscope },
+  { id: 2, label: 'บันทึกงาน', icon: BookOpen },
+  { id: 3, label: 'สแกนเพลท', icon: Camera },
+  { id: 4, label: 'คลังคู่มือ', icon: Library },
+  { id: 5, label: 'ตั้งค่าระบบ', icon: Settings },
 ]
 
 // ─── CONTEXTS FOR STATE PRESERVATION & GLOBAL SETTINGS ───────────────────────
