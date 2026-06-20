@@ -1427,8 +1427,8 @@ function DiagnosticPanel() {
         throw new Error('ไม่พบ Gemini API Key ในระบบ กรุณาตั้งค่า VITE_GEMINI_API_KEY ในไฟล์ .env.local')
       }
 
-      const response = await (async () => {
-        const gasUrl = import.meta.env.VITE_GAS_URL
+      const data = await (async () => {
+        const models = ['gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-2.5-flash']
         const systemPrompt = `คุณคือ "Air Buddy Pro AI" ผู้ช่วยช่างแอร์อัจฉริยะและผู้เชี่ยวชาญด้านระบบปรับอากาศ (Air Conditioning Specialist) ในไทย
 หน้าที่ของคุณคือ:
 1. ตอบคำถามเกี่ยวกับการวิเคราะห์อาการเสีย รหัสเออร์เรอร์โค้ด (Error Code) และแนวทางแก้ไขปัญหาเกี่ยวกับเครื่องปรับอากาศทุกแบรนด์ (เช่น Daikin, Mitsubishi, LG, Carrier, Panasonic เป็นต้น)
@@ -1438,64 +1438,51 @@ function DiagnosticPanel() {
 5. หลีกเลี่ยงข้อความที่ยาวเกินไป ให้เน้นเนื้อหาที่เป็นขั้นตอนปฏิบัติจริง (Actionable Steps)
 6. หากแอร์มีอันตราย (เช่น แรงดันสูง, สารทำความเย็นไวไฟ R32, หรือเกี่ยวข้องกับกระแสไฟฟ้าสูง) ให้มีคำเตือนเรื่องความปลอดภัยสั้นๆ เสมอ`
         const userPrompt = `คำถาม: ${aiQuery} ${brandContext ? `(${brandContext})` : ''}`
+        let lastError = null
 
-        if (gasUrl) {
-          // Route through Google Apps Script as a proxy to avoid browser CORS and network blocks
-          return await fetch(gasUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain',
-            },
-            body: JSON.stringify({
-              action: 'askAi',
-              apiKey: apiKey,
-              prompt: userPrompt,
-              systemPrompt: systemPrompt
-            })
-          })
-        } else {
-          // Fallback direct request (may be blocked by CORS in some browsers)
-          return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    { text: userPrompt }
-                  ]
-                }
-              ],
-              systemInstruction: {
-                parts: [
-                  { text: systemPrompt }
-                ]
+        for (const model of models) {
+          try {
+            console.log(`Trying Gemini model: ${model}`)
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
               },
-              generationConfig: {
-                temperature: 0.7
-              }
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      { text: userPrompt }
+                    ]
+                  }
+                ],
+                systemInstruction: {
+                  parts: [
+                    { text: systemPrompt }
+                  ]
+                },
+                generationConfig: {
+                  temperature: 0.7
+                }
+              })
             })
-          })
+
+            const resData = await res.json()
+            if (!res.ok) {
+              const errMsg = resData.error?.message || `HTTP ${res.status}`
+              console.warn(`Model ${model} failed: ${errMsg}`)
+              lastError = new Error(`Gemini API Error (${model}): ${errMsg}`)
+              continue
+            }
+
+            return resData
+          } catch (err) {
+            console.warn(`Fetch error for model ${model}:`, err)
+            lastError = err
+          }
         }
+        throw lastError || new Error('ไม่สามารถเชื่อมต่อกับ AI ได้ในขณะนี้')
       })()
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      // Check for Google Apps Script execution error
-      if (data && data.status === 'error') {
-        throw new Error(`Google Apps Script Error: ${data.message}`)
-      }
-
-      // Check for Gemini API error returned through proxy
-      if (data && data.error) {
-        throw new Error(`Gemini API Error: ${data.error.message || JSON.stringify(data.error)}`)
-      }
 
       if (!data || !data.candidates || !data.candidates[0]) {
         throw new Error(`Invalid response format from AI: ${JSON.stringify(data)}`)
