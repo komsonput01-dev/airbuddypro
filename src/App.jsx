@@ -966,7 +966,7 @@ function saveJobLocally(record) {
 
 const BOOKMARKS_KEY = 'abp_recent_docs'
 const EMPTY_FORM = {
-  customer: '', location: '', model: '', brand: '',
+  customer: '', phone: '', location: '', model: '', brand: '',
   refrigerant: 'R32', serialNo: '',
   lowBefore: '', highBefore: '', lowAfter: '', highAfter: '',
   current: '', notes: '',
@@ -977,7 +977,7 @@ function generateLINEReport({ form, sharedBTU, unitSystem }) {
   return `🔧 รายงานงานช่างแอร์ — Air Buddy Pro
 📅 วันที่: ${now}
 
-👤 ลูกค้า: ${form.customer || '-'}
+👤 ลูกค้า: ${form.customer || '-'} ${form.phone ? `(โทร: ${form.phone})` : ''}
 📍 สถานที่: ${form.location || '-'}
 🏷️ ยี่ห้อ/รุ่น: ${form.brand || '-'} ${form.model || '-'}
 🔢 ซีเรียล: ${form.serialNo || '-'}
@@ -994,6 +994,62 @@ ${sharedBTU ? `📐 ขนาดแอร์ที่คำนวณ: ${Number(s
 Ref: Air Buddy Pro สำหรับช่างเทคนิค`
 }
 
+// 0. Combined Calculator Wizard Tab Component
+function CombinedCalculatorPanel() {
+  const [calcMode, setCalcMode] = useState('btu') // 'btu' or 'electrical'
+  
+  return (
+    <div className="space-y-6">
+      {/* Wizard Step Toggle Switcher Header */}
+      <div className="p-4 md:p-6 pb-0 md:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-sky-500/20 flex items-center justify-center">
+            <Wind size={24} className="text-sky-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-white">ระบบคำนวณช่างแอร์</h1>
+            <p className="text-xs text-slate-400 mt-0.5">คำนวณ BTU และสเปคระบบไฟฟ้า (เบรกเกอร์/สายไฟ)</p>
+          </div>
+        </div>
+
+        {/* Seamless Toggle / Step Wizard */}
+        <div className="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800 self-start sm:self-auto shadow-inner">
+          <button 
+            type="button"
+            onClick={() => setCalcMode('btu')}
+            className={`py-2 px-4 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${
+              calcMode === 'btu' 
+                ? 'bg-sky-500 text-white shadow-md' 
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Wind size={16} />
+            <span>1. คำนวณ BTU</span>
+          </button>
+          <button 
+            type="button"
+            onClick={() => setCalcMode('electrical')}
+            className={`py-2 px-4 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${
+              calcMode === 'electrical' 
+                ? 'bg-yellow-500 text-slate-955 shadow-md font-black' 
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Zap size={16} />
+            <span>2. ระบบไฟฟ้า</span>
+          </button>
+        </div>
+      </div>
+
+      {calcMode === 'btu' ? (
+        <BTUCalculatorPanel onNavigate={() => setCalcMode('electrical')} />
+      ) : (
+        <ElectricalCalculatorPanel />
+      )}
+    </div>
+  )
+}
+
 // ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
 
 // 1. BTU Calculator Tab Component
@@ -1005,6 +1061,10 @@ function BTUCalculatorPanel({ onNavigate }) {
   const [roomTypeIdx, setRoomTypeIdx] = useState(0)
   const [sunlight, setSunlight] = useState(false)
   const [result, setResult] = useState(null)
+
+  const isWidthWarning = width && parseFloat(width) > 50
+  const isLengthWarning = length && parseFloat(length) > 50
+  const isHeightWarning = height && parseFloat(height) > 10
 
   const findNearestSizes = (btu) => {
     const sorted = [...STANDARD_SIZES]
@@ -1068,8 +1128,13 @@ function BTUCalculatorPanel({ onNavigate }) {
                 placeholder="3.0"
                 value={width}
                 onChange={e => setWidth(e.target.value)}
-                className="input-field text-center text-lg font-bold"
+                className={`input-field text-center text-lg font-bold ${isWidthWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
               />
+              {isWidthWarning && (
+                <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight text-center">
+                  ⚠️ กว้างผิดปกติ (&gt; 50 ม.)
+                </span>
+              )}
             </div>
             <div>
               <label className="label">ยาว (ม.)</label>
@@ -1080,8 +1145,13 @@ function BTUCalculatorPanel({ onNavigate }) {
                 placeholder="4.0"
                 value={length}
                 onChange={e => setLength(e.target.value)}
-                className="input-field text-center text-lg font-bold"
+                className={`input-field text-center text-lg font-bold ${isLengthWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
               />
+              {isLengthWarning && (
+                <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight text-center">
+                  ⚠️ ยาวผิดปกติ (&gt; 50 ม.)
+                </span>
+              )}
             </div>
             <div>
               <label className="label">สูงฝ้า (ม.)</label>
@@ -1092,8 +1162,13 @@ function BTUCalculatorPanel({ onNavigate }) {
                 placeholder="3.0"
                 value={height}
                 onChange={e => setHeight(e.target.value)}
-                className="input-field text-center text-lg font-bold"
+                className={`input-field text-center text-lg font-bold ${isHeightWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
               />
+              {isHeightWarning && (
+                <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight text-center">
+                  ⚠️ สูงผิดปกติ (&gt; 10 ม.)
+                </span>
+              )}
             </div>
           </div>
 
@@ -1151,24 +1226,24 @@ function BTUCalculatorPanel({ onNavigate }) {
               </div>
 
               <div className="text-center py-4 bg-slate-900/40 rounded-2xl border border-slate-800">
-                <p className="text-slate-400 text-sm mb-1 font-semibold">ขนาดความเย็นที่ต้องการจริง</p>
+                <p className="text-slate-200 text-sm mb-1 font-bold">ขนาดความเย็นที่ต้องการจริง</p>
                 <p className="mono text-5xl font-black text-white">
                   {result.btu.toLocaleString()}
                 </p>
-                <p className="text-sky-400 font-extrabold text-lg mt-1">BTU / ชั่วโมง</p>
+                <p className="text-sky-300 font-extrabold text-lg mt-1">BTU / ชั่วโมง</p>
               </div>
 
               <div className="bg-slate-900/80 rounded-xl p-4 space-y-2 text-base font-semibold">
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-200 font-bold">
                   <span>คำนวณขนาดพื้นที่ห้อง</span>
                   <span className="mono text-white">{result.area.toFixed(2)} ตร.ม.</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-200 font-bold">
                   <span>ตัวคูณความร้อนสะสม (Factor)</span>
                   <span className="mono text-white">{result.factor}</span>
                 </div>
                 {result.height > 3.0 && (
-                  <div className="flex justify-between text-amber-400">
+                  <div className="flex justify-between text-amber-400 font-bold">
                     <span>เพดานสูง ({result.height} ม.) ตัวคูณชดเชย</span>
                     <span className="mono">×{(result.height / 3.0).toFixed(2)}</span>
                   </div>
@@ -1176,7 +1251,7 @@ function BTUCalculatorPanel({ onNavigate }) {
               </div>
 
               <div className="space-y-3">
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                <p className="text-xs text-slate-200 font-bold uppercase tracking-wider">
                   ขนาดเครื่องที่แนะนำให้ติดตั้งหน้างาน
                 </p>
                 <div className="grid grid-cols-1 gap-2">
@@ -1190,7 +1265,7 @@ function BTUCalculatorPanel({ onNavigate }) {
                         <span className="mono font-black text-white text-xl">
                           {size.toLocaleString()}
                         </span>
-                        <span className="text-sm ml-1.5 text-slate-400 font-bold">BTU</span>
+                        <span className="text-sm ml-1.5 text-slate-200 font-bold">BTU</span>
                         {i === 0 && (
                           <span className="ml-2 badge badge-blue text-[10px]">ชดเชยที่เหมาะสม</span>
                         )}
@@ -1201,7 +1276,7 @@ function BTUCalculatorPanel({ onNavigate }) {
                         className={`flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-bold transition-all tap-target
                           ${i === 0
                             ? 'bg-sky-500 text-white active:bg-sky-600'
-                            : 'bg-slate-700 text-slate-300 active:bg-slate-600'}`}
+                            : 'bg-slate-700 text-slate-100 active:bg-slate-600'}`}
                       >
                         ใช้ขนาดนี้
                         <ArrowRight size={14} />
@@ -1228,6 +1303,9 @@ function ElectricalCalculatorPanel() {
   const { sharedBTU } = useCalculator()
   const [selectedBTU, setSelectedBTU] = useState('')
   const [result, setResult] = useState(null)
+
+  const runningAmpsVal = parseFloat(selectedBTU) / (11 * 220) || 0
+  const isElecAmpWarning = runningAmpsVal > 100
 
   const getWireSize = (amps) => {
     if (amps <= 6) return { main: '1.5', desc: 'IEC 01 (THW) / IEC 10 (VAF) 1.5 sq.mm' }
@@ -1300,20 +1378,25 @@ function ElectricalCalculatorPanel() {
         {/* Left Column Input */}
         <div className="card p-5 space-y-5">
           <div>
-            <label className="label">กรอกขนาด BTU แอร์ (หรือเลือกปุ่มลัด)</label>
+            <label className="label text-slate-200">กรอกขนาด BTU แอร์ (หรือเลือกปุ่มลัด)</label>
             <input
               id="elec-btu-input"
               type="number"
-              inputMode="numeric"
+              inputMode="decimal"
               placeholder="เช่น 18000"
               value={selectedBTU}
               onChange={e => setSelectedBTU(e.target.value)}
-              className="input-field text-center text-2xl font-black mono"
+              className={`input-field text-center text-2xl font-black mono ${isElecAmpWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
             />
+            {isElecAmpWarning && (
+              <span className="text-[10px] text-amber-400 font-bold block mt-1.5 leading-tight">
+                ⚠️ กระแสไฟฟ้าคำนวณได้ ({runningAmpsVal.toFixed(1)}A) เกิน 100A สำหรับไฟบ้าน 1 เฟสทั่วไป (แนะนำใช้ระบบไฟ 3 เฟส)
+              </span>
+            )}
           </div>
 
           <div className="space-y-2">
-            <label className="label text-center">ปุ่มลัดขนาดบีทียูมาตรฐานทั่วไป</label>
+            <label className="label text-center text-slate-200">ปุ่มลัดขนาดบีทียูมาตรฐานทั่วไป</label>
             <div className="grid grid-cols-3 gap-2">
               {STANDARD_SIZES.map(btu => (
                 <button
@@ -1322,8 +1405,8 @@ function ElectricalCalculatorPanel() {
                   onClick={() => setSelectedBTU(String(btu))}
                   className={`py-3 rounded-xl text-sm font-bold transition-all border tap-target
                     ${selectedBTU === String(btu)
-                      ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400 font-black'
-                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+                      ? 'bg-yellow-500/25 border-yellow-500/50 text-amber-400 font-black'
+                      : 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'}`}
                 >
                   <span className="mono">{(btu / 1000).toFixed(0)}K</span>
                   <br />
@@ -1348,17 +1431,17 @@ function ElectricalCalculatorPanel() {
 
                 <div className="space-y-1">
                   {[
-                    { label: 'กระแสไฟฟ้าแอร์ขณะทำงาน', sub: 'Running Current', val: `${result.runningAmps} Amps`, color: 'text-sky-400', icon: '⚡' },
-                    { label: 'ขนาดพิกัดเบรกเกอร์ (CB)', sub: `คำนวณจริง 1.25x = ${result.safetyAmps}A`, val: `${result.breakerSize} A`, color: 'text-yellow-400', icon: '🔌' },
-                    { label: 'ขนาดสายไฟหลักขั้นต่ำ', sub: 'ทองแดงแกนเดี่ยว THW / VAF', val: `${result.wire.main} sq.mm`, color: 'text-green-400', icon: '🔶' },
-                    { label: 'ขนาดสายดินหลักดิน', sub: 'ตามมาตรฐาน วสท. ขั้นต่ำสุด', val: '1.5 sq.mm', color: 'text-purple-400', icon: '🟢' }
+                    { label: 'กระแสไฟฟ้าแอร์ขณะทำงาน', sub: 'Running Current', val: `${result.runningAmps} Amps`, color: 'text-sky-300', icon: '⚡' },
+                    { label: 'ขนาดพิกัดเบรกเกอร์ (CB)', sub: `คำนวณจริง 1.25x = ${result.safetyAmps}A`, val: `${result.breakerSize} A`, color: 'text-amber-400', icon: '🔌' },
+                    { label: 'ขนาดสายไฟหลักขั้นต่ำ', sub: 'ทองแดงแกนเดี่ยว THW / VAF', val: `${result.wire.main} sq.mm`, color: 'text-emerald-400', icon: '🔶' },
+                    { label: 'ขนาดสายดินหลักดิน', sub: 'ตามมาตรฐาน วสท. ขั้นต่ำสุด', val: '1.5 sq.mm', color: 'text-emerald-400', icon: '🟢' }
                   ].map((row, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-3 border-b border-slate-800 last:border-0">
+                    <div key={idx} className="flex items-center justify-between py-3 border-b border-slate-800 last:border-0 font-bold">
                       <div className="flex items-center gap-2.5">
                         <span className="text-xl">{row.icon}</span>
                         <div>
-                          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{row.label}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5 font-semibold">{row.sub}</p>
+                          <p className="text-xs text-slate-100 font-bold uppercase tracking-wider">{row.label}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 font-semibold">{row.sub}</p>
                         </div>
                       </div>
                       <p className={`mono font-black text-xl ${row.color}`}>{row.val}</p>
@@ -2056,6 +2139,12 @@ function JobLoggerPanel() {
   const [copied, setCopied] = useState(false)
   const [showReport, setShowReport] = useState(false)
 
+  const isLowBeforeWarning = form.lowBefore && (unitSystem === 'PSI' ? parseFloat(form.lowBefore) > 600 : parseFloat(form.lowBefore) > 41.3)
+  const isLowAfterWarning = form.lowAfter && (unitSystem === 'PSI' ? parseFloat(form.lowAfter) > 600 : parseFloat(form.lowAfter) > 41.3)
+  const isHighBeforeWarning = form.highBefore && (unitSystem === 'PSI' ? parseFloat(form.highBefore) > 600 : parseFloat(form.highBefore) > 41.3)
+  const isHighAfterWarning = form.highAfter && (unitSystem === 'PSI' ? parseFloat(form.highAfter) > 600 : parseFloat(form.highAfter) > 41.3)
+  const isCurrentWarning = form.current && parseFloat(form.current) > 100
+
   // Apply scanned data
   useEffect(() => {
     if (scannedJobData) {
@@ -2194,20 +2283,32 @@ function JobLoggerPanel() {
                     placeholder="เช่น นายอรรถพล มั่นคง"
                     value={form.customer}
                     onChange={e => set('customer', e.target.value)}
-                    className="input-field"
+                    className="input-field font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="label">สถานที่ติดตั้ง / สาขา</label>
+                  <label className="label">เบอร์โทรศัพท์ลูกค้า</label>
                   <input
-                    id="job-location"
-                    type="text"
-                    placeholder="เช่น หมู่บ้านรื่นรมย์ ซอย 4"
-                    value={form.location}
-                    onChange={e => set('location', e.target.value)}
-                    className="input-field"
+                    id="job-phone"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="เช่น 0812345678"
+                    value={form.phone || ''}
+                    onChange={e => set('phone', e.target.value)}
+                    className="input-field font-semibold"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="label">สถานที่ติดตั้ง / สาขา</label>
+                <input
+                  id="job-location"
+                  type="text"
+                  placeholder="เช่น หมู่บ้านรื่นรมย์ ซอย 4"
+                  value={form.location}
+                  onChange={e => set('location', e.target.value)}
+                  className="input-field font-semibold"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
@@ -2276,8 +2377,13 @@ function JobLoggerPanel() {
                     placeholder="80"
                     value={form.lowBefore}
                     onChange={e => set('lowBefore', e.target.value)}
-                    className="input-field mono text-center"
+                    className={`input-field mono text-center ${isLowBeforeWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
                   />
+                  {isLowBeforeWarning && (
+                    <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight">
+                      ⚠️ สูงผิดปกติ เกิน {unitSystem === 'PSI' ? '600 PSI' : '41.3 Bar'}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label className="label">Low Pressure หลังเติม ({unitSystem})</label>
@@ -2288,8 +2394,13 @@ function JobLoggerPanel() {
                     placeholder="125"
                     value={form.lowAfter}
                     onChange={e => set('lowAfter', e.target.value)}
-                    className="input-field mono text-center"
+                    className={`input-field mono text-center ${isLowAfterWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
                   />
+                  {isLowAfterWarning && (
+                    <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight">
+                      ⚠️ สูงผิดปกติ เกิน {unitSystem === 'PSI' ? '600 PSI' : '41.3 Bar'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -2303,8 +2414,13 @@ function JobLoggerPanel() {
                     placeholder="220"
                     value={form.highBefore}
                     onChange={e => set('highBefore', e.target.value)}
-                    className="input-field mono text-center"
+                    className={`input-field mono text-center ${isHighBeforeWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
                   />
+                  {isHighBeforeWarning && (
+                    <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight">
+                      ⚠️ สูงผิดปกติ เกิน {unitSystem === 'PSI' ? '600 PSI' : '41.3 Bar'}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label className="label">High Pressure หลังเติม ({unitSystem})</label>
@@ -2315,8 +2431,13 @@ function JobLoggerPanel() {
                     placeholder="380"
                     value={form.highAfter}
                     onChange={e => set('highAfter', e.target.value)}
-                    className="input-field mono text-center"
+                    className={`input-field mono text-center ${isHighAfterWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
                   />
+                  {isHighAfterWarning && (
+                    <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight">
+                      ⚠️ สูงผิดปกติ เกิน {unitSystem === 'PSI' ? '600 PSI' : '41.3 Bar'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -2329,8 +2450,13 @@ function JobLoggerPanel() {
                   placeholder="5.2"
                   value={form.current}
                   onChange={e => set('current', e.target.value)}
-                  className="input-field mono font-black"
+                  className={`input-field mono font-black ${isCurrentWarning ? 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/20 bg-amber-500/5 text-amber-400' : ''}`}
                 />
+                {isCurrentWarning && (
+                  <span className="text-[10px] text-amber-400 font-bold block mt-1.5 leading-tight">
+                    ⚠️ กระแสไฟฟ้าสูงผิดปกติ เกิน 100A
+                  </span>
+                )}
               </div>
 
               <div>
@@ -2608,7 +2734,7 @@ function NameplateScannerPanel({ onNavigate }) {
 
   const handleUseData = () => {
     stopCamera()
-    onNavigate(3) // Switch to Job Logger
+    onNavigate(2) // Switch to Job Logger
   }
 
   useEffect(() => {
@@ -3361,6 +3487,7 @@ function SettingsPanel() {
 // ─── MAIN APP COMPONENT ──────────────────────────────────────────────────────
 function MainAppContent() {
   const [activeTab, setActiveTab] = useState(0)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   // System context properties
   const { powerSaving, isOnline, appTheme } = useApp()
@@ -3398,7 +3525,7 @@ function MainAppContent() {
         </div>
 
         <nav className="flex-1 space-y-2">
-          {TABS.map(({ id, label, icon: Icon }) => {
+          {TABS.slice(0, 4).map(({ id, label, icon: Icon }) => {
             const active = activeTab === id
             return (
               <button
@@ -3410,7 +3537,7 @@ function MainAppContent() {
                       ? 'bg-blue-600/10 border-blue-500/30 text-blue-600 shadow-inner'
                       : 'bg-sky-500/10 border-sky-500/30 text-sky-400 shadow-inner'
                     : appTheme === 'light'
-                      ? 'bg-transparent border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-transparent border-transparent text-slate-655 hover:bg-slate-100 hover:text-slate-900'
                       : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
                 }`}
               >
@@ -3441,19 +3568,21 @@ function MainAppContent() {
 
       {/* Main Panel Content Area */}
       <div className="flex-1 flex flex-col min-h-screen relative overflow-hidden">
-        {/* Mobile Top Bar */}
-        <header className={`md:hidden flex items-center justify-between px-4 py-3.5 border-b ${
+        {/* Top Header Bar on All Screen Sizes */}
+        <header className={`flex items-center justify-between px-4 md:px-6 py-3.5 border-b shrink-0 ${
           powerSaving ? 'bg-black border-slate-900' :
-          appTheme === 'light' ? 'bg-white border-slate-200' :
+          appTheme === 'light' ? 'bg-white border-slate-200 shadow-sm' :
           'border-slate-900 bg-slate-900/60 backdrop-blur-md'
         }`}>
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center shrink-0">
               <Wind className="text-white" size={16} />
             </div>
-            <h1 className="font-black text-base gradient-text tracking-tight">Air Buddy Pro</h1>
+            <h1 className="font-black text-base md:text-lg text-white tracking-tight">
+              {TABS.find(t => t.id === activeTab)?.label || 'Air Buddy Pro'}
+            </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {!isOnline && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/15 border border-amber-500/30 rounded-full animate-pulse">
                 <WifiOff size={12} className="text-amber-400" />
@@ -3466,6 +3595,18 @@ function MainAppContent() {
                 <span className="text-[10px] font-black text-green-400">Online</span>
               </div>
             )}
+            <button
+              id="hamburger-menu-btn"
+              onClick={() => setIsDrawerOpen(true)}
+              className={`p-2 rounded-xl transition-all border tap-target flex items-center justify-center ${
+                appTheme === 'light' 
+                  ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' 
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+              }`}
+              style={{ minWidth: '44px', minHeight: '44px' }}
+            >
+              <Menu size={20} />
+            </button>
           </div>
         </header>
 
@@ -3473,24 +3614,21 @@ function MainAppContent() {
         <main className="flex-1 overflow-y-auto pb-24 md:pb-6 relative content-area">
           <div className="max-w-7xl mx-auto w-full">
             <div className={activeTab === 0 ? 'block' : 'hidden'}>
-              <BTUCalculatorPanel onNavigate={(idx) => setActiveTab(idx)} />
+              <CombinedCalculatorPanel />
             </div>
             <div className={activeTab === 1 ? 'block' : 'hidden'}>
-              <ElectricalCalculatorPanel />
-            </div>
-            <div className={activeTab === 2 ? 'block' : 'hidden'}>
               <DiagnosticPanel />
             </div>
-            <div className={activeTab === 3 ? 'block' : 'hidden'}>
+            <div className={activeTab === 2 ? 'block' : 'hidden'}>
               <JobLoggerPanel />
             </div>
-            <div className={activeTab === 4 ? 'block' : 'hidden'}>
+            <div className={activeTab === 3 ? 'block' : 'hidden'}>
               <NameplateScannerPanel onNavigate={(idx) => setActiveTab(idx)} />
             </div>
-            <div className={activeTab === 5 ? 'block' : 'hidden'}>
+            <div className={activeTab === 4 ? 'block' : 'hidden'}>
               <DocumentLibraryPanel />
             </div>
-            <div className={activeTab === 6 ? 'block' : 'hidden'}>
+            <div className={activeTab === 5 ? 'block' : 'hidden'}>
               <SettingsPanel />
             </div>
           </div>
@@ -3503,7 +3641,7 @@ function MainAppContent() {
           'border-slate-900/60 bg-slate-950/90 backdrop-blur-lg'
         }`}>
           <div className="flex items-stretch justify-around py-2 px-1 pb-[calc(4px+env(safe-area-inset-bottom,0px))]">
-            {TABS.map(({ id, label, icon: Icon }) => {
+            {TABS.slice(0, 4).map(({ id, label, icon: Icon }) => {
               const active = activeTab === id
               return (
                 <button
@@ -3514,6 +3652,7 @@ function MainAppContent() {
                       ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
                       : appTheme === 'light' ? 'text-slate-400 active:text-slate-700' : 'text-slate-500 active:text-slate-300'
                   }`}
+                  style={{ minHeight: '52px' }}
                 >
                   <Icon size={active ? 22 : 18} className="mb-0.5" />
                   <span className="text-[10px] font-bold tracking-wide">{label}</span>
@@ -3523,6 +3662,77 @@ function MainAppContent() {
           </div>
         </nav>
       </div>
+
+      {/* Slide-out Hamburger Menu Drawer Overlay */}
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity cursor-pointer"
+            onClick={() => setIsDrawerOpen(false)}
+          />
+          
+          {/* Drawer Content */}
+          <nav className={`relative w-72 max-w-[80vw] h-full flex flex-col justify-between p-6 shadow-2xl transition-transform duration-300 ${
+            powerSaving ? 'bg-black border-l border-slate-900 text-white' :
+            appTheme === 'light' ? 'bg-white border-l border-slate-200 text-slate-900' :
+            'bg-slate-950 border-l border-slate-900 text-slate-100'
+          }`}>
+            <div className="space-y-6">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <h3 className="font-black text-lg">เมนูเพิ่มเติม</h3>
+                <button 
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`p-1.5 rounded-lg border transition-all ${
+                    appTheme === 'light'
+                      ? 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-700'
+                      : 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Drawer Links */}
+              <div className="space-y-2.5">
+                {TABS.slice(4).map(({ id, label, icon: Icon }) => {
+                  const active = activeTab === id
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => {
+                        setActiveTab(id)
+                        setIsDrawerOpen(false)
+                      }}
+                      className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl font-bold transition-all text-left border tap-target ${
+                        active
+                          ? appTheme === 'light'
+                            ? 'bg-blue-600/10 border-blue-500/30 text-blue-600 shadow-inner'
+                            : 'bg-sky-500/10 border-sky-500/30 text-sky-400 shadow-inner'
+                          : appTheme === 'light'
+                            ? 'bg-transparent border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-250'
+                      }`}
+                    >
+                      <Icon size={20} className={active
+                        ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
+                        : appTheme === 'light' ? 'text-slate-400' : 'text-slate-500'
+                      } />
+                      <span className="text-base">{label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="pt-4 border-t border-slate-850 text-center">
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Air Buddy Pro v1.2.0</p>
+            </div>
+          </nav>
+        </div>
+      )}
     </div>
   )
 }
