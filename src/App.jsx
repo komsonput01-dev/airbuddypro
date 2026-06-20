@@ -8,6 +8,23 @@ import {
   Eye, Star, Download, ImagePlus, Brain, Sparkles, Send
 } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
+import { 
+  HomeIcon as HomeOutline, 
+  MagnifyingGlassIcon as SearchOutline, 
+  BellIcon as BellOutline, 
+  UserIcon as UserOutline,
+  BookOpenIcon as LibraryOutline,
+  Cog6ToothIcon as SettingsOutline
+} from '@heroicons/react/24/outline'
+import { 
+  HomeIcon as HomeSolid, 
+  MagnifyingGlassIcon as SearchSolid, 
+  BellIcon as BellSolid, 
+  UserIcon as UserSolid,
+  BookOpenIcon as LibrarySolid,
+  Cog6ToothIcon as SettingsSolid
+} from '@heroicons/react/24/solid'
+
 
 // ─── SUPABASE INITIALIZATION ────────────────────────────────────────────────
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -686,12 +703,12 @@ const types = ['Inverter', 'Fixed Speed']
 const categories = ['Installation', 'Wiring', 'Error Manuals']
 
 const TABS = [
-  { id: 0, label: 'คำนวณ', icon: Wind },
-  { id: 1, label: 'วิเคราะห์อาการ', icon: Stethoscope },
-  { id: 2, label: 'บันทึกงาน', icon: BookOpen },
-  { id: 3, label: 'สแกนเพลท', icon: Camera },
-  { id: 4, label: 'คลังคู่มือ', icon: Library },
-  { id: 5, label: 'ตั้งค่าระบบ', icon: Settings },
+  { id: 0, label: 'Home', iconOutline: HomeOutline, iconSolid: HomeSolid },
+  { id: 1, label: 'Search', iconOutline: SearchOutline, iconSolid: SearchSolid },
+  { id: 2, label: 'Notifications', iconOutline: BellOutline, iconSolid: BellSolid },
+  { id: 3, label: 'Profile', iconOutline: UserOutline, iconSolid: UserSolid },
+  { id: 4, label: 'คลังคู่มือ', iconOutline: LibraryOutline, iconSolid: LibrarySolid },
+  { id: 5, label: 'ตั้งค่าระบบ', iconOutline: SettingsOutline, iconSolid: SettingsSolid },
 ]
 
 // ─── CONTEXTS FOR STATE PRESERVATION & GLOBAL SETTINGS ───────────────────────
@@ -3524,8 +3541,9 @@ function MainAppContent() {
         </div>
 
         <nav className="flex-1 space-y-2">
-          {TABS.slice(0, 4).map(({ id, label, icon: Icon }) => {
+          {TABS.slice(0, 4).map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
             const active = activeTab === id
+            const Icon = active ? IconSolid : IconOutline
             return (
               <button
                 key={id}
@@ -3534,16 +3552,16 @@ function MainAppContent() {
                   active
                     ? appTheme === 'light'
                       ? 'bg-blue-600/10 border-blue-500/30 text-blue-600 shadow-inner'
-                      : 'bg-sky-500/10 border-sky-500/30 text-sky-400 shadow-inner'
+                      : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-inner'
                     : appTheme === 'light'
                       ? 'bg-transparent border-transparent text-slate-655 hover:bg-slate-100 hover:text-slate-900'
                       : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
                 }`}
               >
-                <Icon size={20} className={active
-                  ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
+                <Icon className={`w-5 h-5 ${active
+                  ? appTheme === 'light' ? 'text-blue-600' : 'text-indigo-400'
                   : appTheme === 'light' ? 'text-slate-400' : 'text-slate-500'
-                } />
+                }`} />
                 <span className="text-base">{label}</span>
               </button>
             )
@@ -3636,25 +3654,38 @@ function MainAppContent() {
         {/* Bottom Navigation - Mobile Devices */}
         <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-50 border-t ${
           powerSaving ? 'bg-black border-slate-900' :
-          appTheme === 'light' ? 'bg-white/95 backdrop-blur-lg border-slate-200' :
-          'border-slate-900/60 bg-slate-950/90 backdrop-blur-lg'
-        }`}>
-          <div className="flex items-stretch justify-around py-2 px-1 pb-[calc(4px+env(safe-area-inset-bottom,0px))]">
-            {TABS.slice(0, 4).map(({ id, label, icon: Icon }) => {
+          appTheme === 'light' ? 'bg-white/85 backdrop-blur-md border-slate-200/85 shadow-[0_-4px_24px_rgba(0,0,0,0.04)]' :
+          'border-slate-900/60 bg-slate-950/80 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.2)]'
+        }`}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 12px) + 8px)' }}
+        >
+          <div className="flex items-stretch justify-around pt-2.5 px-3">
+            {TABS.slice(0, 4).map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
               const active = activeTab === id
+              const Icon = active ? IconSolid : IconOutline
               return (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
-                  className={`flex-1 flex flex-col items-center justify-center py-1 transition-all duration-150 tap-target ${
-                    active
-                      ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
-                      : appTheme === 'light' ? 'text-slate-400 active:text-slate-700' : 'text-slate-500 active:text-slate-300'
-                  }`}
-                  style={{ minHeight: '52px' }}
+                  className="relative flex-1 flex flex-col items-center justify-center py-1 transition-all duration-300 tap-target group"
+                  style={{ minHeight: '56px' }}
                 >
-                  <Icon size={active ? 22 : 18} className="mb-0.5" />
-                  <span className="text-[10px] font-bold tracking-wide">{label}</span>
+                  {/* Icon container with bounce animation */}
+                  <div className={`transition-all duration-300 transform active:scale-90 hover:scale-110 ${
+                    active ? 'scale-110 text-indigo-650 dark:text-indigo-400 -translate-y-1' : 'text-slate-400 dark:text-slate-500 hover:text-slate-650 dark:hover:text-slate-400'
+                  }`}>
+                    <Icon className="w-6 h-6 transition-transform duration-350 ease-spring" />
+                  </div>
+                  {/* Dot/Indicator below active icon */}
+                  {active && (
+                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-pulse" />
+                  )}
+                  {/* Label */}
+                  <span className={`text-[10px] mt-1 font-bold tracking-wide transition-all duration-200 ${
+                    active ? 'text-indigo-600 dark:text-indigo-400 font-extrabold scale-105' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-650'
+                  }`}>
+                    {label}
+                  </span>
                 </button>
               )
             })}
@@ -3695,8 +3726,9 @@ function MainAppContent() {
 
               {/* Drawer Links */}
               <div className="space-y-2.5">
-                {TABS.slice(4).map(({ id, label, icon: Icon }) => {
+                {TABS.slice(4).map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
                   const active = activeTab === id
+                  const Icon = active ? IconSolid : IconOutline
                   return (
                     <button
                       key={id}
@@ -3714,10 +3746,10 @@ function MainAppContent() {
                             : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-250'
                       }`}
                     >
-                      <Icon size={20} className={active
+                      <Icon className={`w-5 h-5 ${active
                         ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
                         : appTheme === 'light' ? 'text-slate-400' : 'text-slate-500'
-                      } />
+                      }`} />
                       <span className="text-base">{label}</span>
                     </button>
                   )
