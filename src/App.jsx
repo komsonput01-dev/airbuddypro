@@ -1422,9 +1422,9 @@ function DiagnosticPanel() {
     const brandContext = brand ? `แบรนด์เครื่องปรับอากาศ: ${brand}` : ''
 
     try {
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
       if (!apiKey) {
-        throw new Error('ไม่พบ OpenAI API Key ในระบบ กรุณาตั้งค่า VITE_OPENAI_API_KEY ในไฟล์ .env.local')
+        throw new Error('ไม่พบ Gemini API Key ในระบบ กรุณาตั้งค่า VITE_GEMINI_API_KEY ในไฟล์ .env.local')
       }
 
       const response = await (async () => {
@@ -1455,19 +1455,27 @@ function DiagnosticPanel() {
           })
         } else {
           // Fallback direct request (may be blocked by CORS in some browsers)
-          return await fetch('https://api.openai.com/v1/chat/completions', {
+          return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
+              contents: [
+                {
+                  parts: [
+                    { text: userPrompt }
+                  ]
+                }
               ],
-              temperature: 0.7
+              systemInstruction: {
+                parts: [
+                  { text: systemPrompt }
+                ]
+              },
+              generationConfig: {
+                temperature: 0.7
+              }
             })
           })
         }
@@ -1484,16 +1492,16 @@ function DiagnosticPanel() {
         throw new Error(`Google Apps Script Error: ${data.message}`)
       }
 
-      // Check for OpenAI API error returned through proxy
+      // Check for Gemini API error returned through proxy
       if (data && data.error) {
-        throw new Error(`OpenAI API Error: ${data.error.message || JSON.stringify(data.error)}`)
+        throw new Error(`Gemini API Error: ${data.error.message || JSON.stringify(data.error)}`)
       }
 
-      if (!data || !data.choices || !data.choices[0]) {
+      if (!data || !data.candidates || !data.candidates[0]) {
         throw new Error(`Invalid response format from AI: ${JSON.stringify(data)}`)
       }
 
-      const reply = data.choices[0].message?.content || 'ไม่พบคำตอบจาก AI'
+      const reply = data.candidates[0].content?.parts[0]?.text || 'ไม่พบคำตอบจาก AI'
       setAiResponse(reply)
       setAiHistory(prev => [{ query: aiQuery, response: reply, brand: brand }, ...prev].slice(0, 5))
     } catch (err) {
@@ -3328,20 +3336,20 @@ function SettingsPanel() {
                 )}
               </div>
 
-              {/* OpenAI Status */}
+              {/* Gemini Status */}
               <div className="flex flex-col gap-1.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-300">ตัวช่วยวิเคราะห์ AI (GPT)</span>
-                  {import.meta.env.VITE_OPENAI_API_KEY ? (
+                  <span className="text-xs font-bold text-slate-300">ตัวช่วยวิเคราะห์ AI (Gemini)</span>
+                  {import.meta.env.VITE_GEMINI_API_KEY ? (
                     <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold border border-green-500/30">ตั้งค่าแล้ว</span>
                   ) : (
                     <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold border border-red-500/30">ไม่ได้ตั้งค่า</span>
                   )}
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono break-all leading-relaxed">
-                  {import.meta.env.VITE_OPENAI_API_KEY 
-                    ? "sk-proj-..." + import.meta.env.VITE_OPENAI_API_KEY.substring(12, 24) + "..." 
-                    : "ไม่มีข้อมูล Key (โปรดเช็ค VITE_OPENAI_API_KEY ในตัวแปร Vercel)"}
+                  {import.meta.env.VITE_GEMINI_API_KEY 
+                    ? "AQ-gemini-..." + import.meta.env.VITE_GEMINI_API_KEY.substring(10, 22) + "..." 
+                    : "ไม่มีข้อมูล Key (โปรดเช็ค VITE_GEMINI_API_KEY ในตัวแปร Vercel)"}
                 </p>
               </div>
             </div>
