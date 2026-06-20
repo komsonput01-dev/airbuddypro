@@ -62,28 +62,38 @@ function RefrigerantGuideTable({ unitSystem }) {
   )
 }
 
-// ─── LINE Report Generator ───────────────────────────────────────────────────
 function generateLINEReport({ form, sharedBTU, unitSystem }) {
-  const now = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })
-  return `🔧 รายงานงานช่างแอร์ — Air Buddy Pro
-📅 วันที่: ${now}
+  const lowBeforeVal = parseFloat(form.lowBefore)
+  const lowAfterVal = parseFloat(form.lowAfter)
+  const highBeforeVal = parseFloat(form.highBefore)
+  const highAfterVal = parseFloat(form.highAfter)
 
-👤 ลูกค้า: ${form.customer || '-'}
-📍 สถานที่: ${form.location || '-'}
-🏷️ ยี่ห้อ/รุ่น: ${form.brand || '-'} ${form.model || '-'}
-🔢 ซีเรียล: ${form.serialNo || '-'}
-❄️ น้ำยา: ${form.refrigerant}
+  const hasLowDiff = !isNaN(lowBeforeVal) && !isNaN(lowAfterVal)
+  const hasHighDiff = !isNaN(highBeforeVal) && !isNaN(highAfterVal)
 
-${sharedBTU ? `📐 ขนาดแอร์ที่คำนวณ: ${Number(sharedBTU).toLocaleString()} BTU\n` : ''}
-⚡ ค่าไฟฟ้าและแรงดัน (${unitSystem}):
-  • แรงดันต่ำ ก่อน/หลัง: ${form.lowBefore || '-'} / ${form.lowAfter || '-'} ${unitSystem}
-  • แรงดันสูง ก่อน/หลัง: ${form.highBefore || '-'} / ${form.highAfter || '-'} ${unitSystem}
-  • กระแสขณะทำงาน: ${form.current || '-'} A
+  const lowDiff = hasLowDiff ? (lowAfterVal - lowBeforeVal) : null
+  const highDiff = hasHighDiff ? (highAfterVal - highBeforeVal) : null
 
-📝 หมายเหตุ: ${form.notes || '-'}
+  let diffParts = []
+  if (lowDiff !== null) diffParts.push(`Low: ${lowDiff >= 0 ? '+' : ''}${lowDiff.toFixed(1)}`)
+  if (highDiff !== null) diffParts.push(`High: ${highDiff >= 0 ? '+' : ''}${highDiff.toFixed(1)}`)
+  const calculatedDiff = diffParts.length > 0 ? `${diffParts.join(' / ')}` : '-'
+  const diffUnit = diffParts.length > 0 ? ` ${unitSystem}` : ''
 
-✅ ตรวจสอบและบริการโดย: Air Buddy Pro
-🌐 ระบบช่างแอร์มืออาชีพ`
+  return `----------------------------------------
+🛠️ **รายงานการตรวจเช็คเครื่องปรับอากาศ (Air Buddy Pro)**
+----------------------------------------
+👤 **ลูกค้า:** ${form.customer || '-'} | 📞 ${form.phone || '-'}
+❄️ **เครื่อง:** ${form.brand || '-'} - ${form.model || '-'} (${form.serialNo || '-'})
+🧪 **น้ำยา:** ${form.refrigerant || '-'}
+⚡ **กระแสไฟ:** ${form.current || '-'} A
+📊 **ความดันน้ำยาแอร์:**
+  • ก่อนบริการ: ${form.lowBefore || '-'} / ${form.highBefore || '-'} ${unitSystem}
+  • หลังบริการ: ${form.lowAfter || '-'} / ${form.highAfter || '-'} ${unitSystem}
+  • ส่วนต่าง: ${calculatedDiff}${diffUnit}
+📝 **บันทึกช่าง:** ${form.notes || '-'}
+----------------------------------------
+ขอบคุณที่ใช้บริการครับ 🙏`
 }
 
 // ─── Job Logger Form ─────────────────────────────────────────────────────────
@@ -135,7 +145,14 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
   }
 
   const handleOpenLINE = () => {
-    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`, '_blank')
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
+    const shareUrl = isLocal ? 'https://airbuddypro.vercel.app' : window.location.origin;
+    const url = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(lineReport)}`;
+    const width = 450;
+    const height = 650;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    window.open(url, 'LINE Share', `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`)
   }
 
   const InputField = ({ id, label, placeholder, value, onChange, type = 'text', inputMode }) => (

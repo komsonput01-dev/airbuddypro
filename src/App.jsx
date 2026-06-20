@@ -9,18 +9,18 @@ import {
 } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { 
-  HomeIcon as HomeOutline, 
-  MagnifyingGlassIcon as SearchOutline, 
-  BellIcon as BellOutline, 
-  UserIcon as UserOutline,
+  CalculatorIcon as CalcOutline, 
+  WrenchScrewdriverIcon as WrenchOutline, 
+  ClipboardDocumentCheckIcon as ClipboardOutline, 
+  CameraIcon as CameraOutline,
   BookOpenIcon as LibraryOutline,
   Cog6ToothIcon as SettingsOutline
 } from '@heroicons/react/24/outline'
 import { 
-  HomeIcon as HomeSolid, 
-  MagnifyingGlassIcon as SearchSolid, 
-  BellIcon as BellSolid, 
-  UserIcon as UserSolid,
+  CalculatorIcon as CalcSolid, 
+  WrenchScrewdriverIcon as WrenchSolid, 
+  ClipboardDocumentCheckIcon as ClipboardSolid, 
+  CameraIcon as CameraSolid,
   BookOpenIcon as LibrarySolid,
   Cog6ToothIcon as SettingsSolid
 } from '@heroicons/react/24/solid'
@@ -703,10 +703,10 @@ const types = ['Inverter', 'Fixed Speed']
 const categories = ['Installation', 'Wiring', 'Error Manuals']
 
 const TABS = [
-  { id: 0, label: 'Home', iconOutline: HomeOutline, iconSolid: HomeSolid },
-  { id: 1, label: 'Search', iconOutline: SearchOutline, iconSolid: SearchSolid },
-  { id: 2, label: 'Notifications', iconOutline: BellOutline, iconSolid: BellSolid },
-  { id: 3, label: 'Profile', iconOutline: UserOutline, iconSolid: UserSolid },
+  { id: 0, label: 'คำนวณ', iconOutline: CalcOutline, iconSolid: CalcSolid },
+  { id: 1, label: 'วิเคราะห์อาการ', iconOutline: WrenchOutline, iconSolid: WrenchSolid },
+  { id: 2, label: 'บันทึกงาน', iconOutline: ClipboardOutline, iconSolid: ClipboardSolid },
+  { id: 3, label: 'สแกนเพลท', iconOutline: CameraOutline, iconSolid: CameraSolid },
   { id: 4, label: 'คลังคู่มือ', iconOutline: LibraryOutline, iconSolid: LibrarySolid },
   { id: 5, label: 'ตั้งค่าระบบ', iconOutline: SettingsOutline, iconSolid: SettingsSolid },
 ]
@@ -989,25 +989,37 @@ const EMPTY_FORM = {
 }
 
 function generateLINEReport({ form, sharedBTU, unitSystem }) {
-  const now = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })
-  return `🔧 รายงานงานช่างแอร์ — Air Buddy Pro
-📅 วันที่: ${now}
+  const lowBeforeVal = parseFloat(form.lowBefore)
+  const lowAfterVal = parseFloat(form.lowAfter)
+  const highBeforeVal = parseFloat(form.highBefore)
+  const highAfterVal = parseFloat(form.highAfter)
 
-👤 ลูกค้า: ${form.customer || '-'} ${form.phone ? `(โทร: ${form.phone})` : ''}
-📍 สถานที่: ${form.location || '-'}
-🏷️ ยี่ห้อ/รุ่น: ${form.brand || '-'} ${form.model || '-'}
-🔢 ซีเรียล: ${form.serialNo || '-'}
-❄️ น้ำยา: ${form.refrigerant}
+  const hasLowDiff = !isNaN(lowBeforeVal) && !isNaN(lowAfterVal)
+  const hasHighDiff = !isNaN(highBeforeVal) && !isNaN(highAfterVal)
 
-${sharedBTU ? `📐 ขนาดแอร์ที่คำนวณ: ${Number(sharedBTU).toLocaleString()} BTU\n` : ''}
-⚡ ค่าไฟฟ้าและแรงดัน (${unitSystem}):
-  • แรงดันต่ำ ก่อน/หลัง: ${form.lowBefore || '-'} / ${form.lowAfter || '-'} ${unitSystem}
-  • แรงดันสูง ก่อน/หลัง: ${form.highBefore || '-'} / ${form.highAfter || '-'} ${unitSystem}
-  • กระแสขณะทำงาน: ${form.current || '-'} A
+  const lowDiff = hasLowDiff ? (lowAfterVal - lowBeforeVal) : null
+  const highDiff = hasHighDiff ? (highAfterVal - highBeforeVal) : null
 
-📝 หมายเหตุ: ${form.notes || '-'}
+  let diffParts = []
+  if (lowDiff !== null) diffParts.push(`Low: ${lowDiff >= 0 ? '+' : ''}${lowDiff.toFixed(1)}`)
+  if (highDiff !== null) diffParts.push(`High: ${highDiff >= 0 ? '+' : ''}${highDiff.toFixed(1)}`)
+  const calculatedDiff = diffParts.length > 0 ? `${diffParts.join(' / ')}` : '-'
+  const diffUnit = diffParts.length > 0 ? ` ${unitSystem}` : ''
 
-Ref: Air Buddy Pro สำหรับช่างเทคนิค`
+  return `----------------------------------------
+🛠️ **รายงานการตรวจเช็คเครื่องปรับอากาศ (Air Buddy Pro)**
+----------------------------------------
+👤 **ลูกค้า:** ${form.customer || '-'} | 📞 ${form.phone || '-'}
+❄️ **เครื่อง:** ${form.brand || '-'} - ${form.model || '-'} (${form.serialNo || '-'})
+🧪 **น้ำยา:** ${form.refrigerant || '-'}
+⚡ **กระแสไฟ:** ${form.current || '-'} A
+📊 **ความดันน้ำยาแอร์:**
+  • ก่อนบริการ: ${form.lowBefore || '-'} / ${form.highBefore || '-'} ${unitSystem}
+  • หลังบริการ: ${form.lowAfter || '-'} / ${form.highAfter || '-'} ${unitSystem}
+  • ส่วนต่าง: ${calculatedDiff}${diffUnit}
+📝 **บันทึกช่าง:** ${form.notes || '-'}
+----------------------------------------
+ขอบคุณที่ใช้บริการครับ 🙏`
 }
 
 // 0. Combined Calculator Wizard Tab Component
@@ -2155,11 +2167,22 @@ function JobLoggerPanel() {
   const [copied, setCopied] = useState(false)
   const [showReport, setShowReport] = useState(false)
 
-  const isLowBeforeWarning = form.lowBefore && (unitSystem === 'PSI' ? parseFloat(form.lowBefore) > 600 : parseFloat(form.lowBefore) > 41.3)
+  const isLowBeforeWarning = form.lowBefore && (form.refrigerant === 'R32' ? (unitSystem === 'PSI' ? parseFloat(form.lowBefore) > 250 : parseFloat(form.lowBefore) > 17.2) : (unitSystem === 'PSI' ? parseFloat(form.lowBefore) > 600 : parseFloat(form.lowBefore) > 41.3))
   const isLowAfterWarning = form.lowAfter && (unitSystem === 'PSI' ? parseFloat(form.lowAfter) > 600 : parseFloat(form.lowAfter) > 41.3)
-  const isHighBeforeWarning = form.highBefore && (unitSystem === 'PSI' ? parseFloat(form.highBefore) > 600 : parseFloat(form.highBefore) > 41.3)
+  const isHighBeforeWarning = form.highBefore && (form.refrigerant === 'R32' ? (unitSystem === 'PSI' ? parseFloat(form.highBefore) > 250 : parseFloat(form.highBefore) > 17.2) : (unitSystem === 'PSI' ? parseFloat(form.highBefore) > 600 : parseFloat(form.highBefore) > 41.3))
   const isHighAfterWarning = form.highAfter && (unitSystem === 'PSI' ? parseFloat(form.highAfter) > 600 : parseFloat(form.highAfter) > 41.3)
-  const isCurrentWarning = form.current && parseFloat(form.current) > 100
+  const isCurrentWarning = form.current && parseFloat(form.current) > 50
+
+  const lowBeforeVal = parseFloat(form.lowBefore)
+  const lowAfterVal = parseFloat(form.lowAfter)
+  const highBeforeVal = parseFloat(form.highBefore)
+  const highAfterVal = parseFloat(form.highAfter)
+
+  const hasLowDiff = !isNaN(lowBeforeVal) && !isNaN(lowAfterVal)
+  const hasHighDiff = !isNaN(highBeforeVal) && !isNaN(highAfterVal)
+
+  const lowDiff = hasLowDiff ? (lowAfterVal - lowBeforeVal) : null
+  const highDiff = hasHighDiff ? (highAfterVal - highBeforeVal) : null
 
   // Apply scanned data
   useEffect(() => {
@@ -2200,7 +2223,31 @@ function JobLoggerPanel() {
   }
 
   const handleOpenLINE = () => {
-    window.open(`line://msg/text/?${encodeURIComponent(lineReport)}`, '_blank')
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
+    const shareUrl = isLocal ? 'https://airbuddypro.vercel.app' : window.location.origin;
+    const url = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(lineReport)}`;
+    const width = 450;
+    const height = 650;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    window.open(url, 'LINE Share', `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`)
+  }
+
+  const handleDeleteJob = async (job) => {
+    let localJobs = JSON.parse(localStorage.getItem('abp_local_jobs') || '[]')
+    localJobs = localJobs.filter(j => j.id !== job.id)
+    localStorage.setItem('abp_local_jobs', JSON.stringify(localJobs))
+
+    const hasSupabase = !!(supabaseConfigured && supabase)
+    if (hasSupabase && job.id) {
+      try {
+        await supabase.from('jobs').delete().eq('id', job.id)
+      } catch (err) {
+        console.error('Failed to delete job from Supabase:', err)
+      }
+    }
+
+    setHistoryRefresh(p => p + 1)
   }
 
   // History list states
@@ -2397,7 +2444,7 @@ function JobLoggerPanel() {
                   />
                   {isLowBeforeWarning && (
                     <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight">
-                      ⚠️ สูงผิดปกติ เกิน {unitSystem === 'PSI' ? '600 PSI' : '41.3 Bar'}
+                      ⚠️ สูงผิดปกติ เกิน {unitSystem === 'PSI' ? (form.refrigerant === 'R32' ? '250 PSI' : '600 PSI') : (form.refrigerant === 'R32' ? '17.2 Bar' : '41.3 Bar')}
                     </span>
                   )}
                 </div>
@@ -2434,7 +2481,7 @@ function JobLoggerPanel() {
                   />
                   {isHighBeforeWarning && (
                     <span className="text-[10px] text-amber-400 font-bold block mt-1 leading-tight">
-                      ⚠️ สูงผิดปกติ เกิน {unitSystem === 'PSI' ? '600 PSI' : '41.3 Bar'}
+                      ⚠️ สูงผิดปกติ เกิน {unitSystem === 'PSI' ? (form.refrigerant === 'R32' ? '250 PSI' : '600 PSI') : (form.refrigerant === 'R32' ? '17.2 Bar' : '41.3 Bar')}
                     </span>
                   )}
                 </div>
@@ -2457,6 +2504,53 @@ function JobLoggerPanel() {
                 </div>
               </div>
 
+              {/* Pressure Differential Metric Card */}
+              {(hasLowDiff || hasHighDiff) && (
+                <div className="bg-slate-900/60 border border-slate-800/80 p-4 rounded-xl space-y-2.5 animate-fadeInDown">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                      📊 ส่วนต่างความดันน้ำยา (Pressure Differential)
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono font-bold">
+                      หน่วย: {unitSystem}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-0.5">
+                    <div className="bg-slate-950/40 border border-slate-900/60 rounded-xl p-3 text-center flex flex-col justify-center">
+                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">ฝั่ง Low (Low Diff)</p>
+                      {hasLowDiff ? (
+                        <div>
+                          <p className={`mono text-base font-black ${lowDiff > 0 ? 'text-emerald-400' : lowDiff < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                            {lowDiff > 0 ? '+' : ''}{lowDiff.toFixed(1)}
+                          </p>
+                          <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                            {lowDiff > 0 ? 'แรงดันเพิ่มขึ้น' : lowDiff < 0 ? 'แรงดันลดลง' : 'แรงดันคงที่'}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="mono text-base font-black text-slate-600">-</p>
+                      )}
+                    </div>
+                    
+                    <div className="bg-slate-950/40 border border-slate-900/60 rounded-xl p-3 text-center flex flex-col justify-center">
+                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">ฝั่ง High (High Diff)</p>
+                      {hasHighDiff ? (
+                        <div>
+                          <p className={`mono text-base font-black ${highDiff > 0 ? 'text-emerald-400' : highDiff < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                            {highDiff > 0 ? '+' : ''}{highDiff.toFixed(1)}
+                          </p>
+                          <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                            {highDiff > 0 ? 'แรงดันเพิ่มขึ้น' : highDiff < 0 ? 'แรงดันลดลง' : 'แรงดันคงที่'}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="mono text-base font-black text-slate-600">-</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="label">กระแสไฟฟ้าหน้างาน (แอมป์)</label>
                 <input
@@ -2470,7 +2564,7 @@ function JobLoggerPanel() {
                 />
                 {isCurrentWarning && (
                   <span className="text-[10px] text-amber-400 font-bold block mt-1.5 leading-tight">
-                    ⚠️ กระแสไฟฟ้าสูงผิดปกติ เกิน 100A
+                    ⚠️ กระแสไฟฟ้าสูงผิดปกติ เกิน 50A
                   </span>
                 )}
               </div>
@@ -2662,6 +2756,45 @@ function JobLoggerPanel() {
                               <p className="text-slate-300 text-sm">{job.notes}</p>
                             </div>
                           )}
+
+                          <div className="col-span-2 grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/60 mt-1">
+                            <button
+                              onClick={() => {
+                                setForm({
+                                  customer: job.customer || '',
+                                  phone: job.phone || '',
+                                  location: job.location || '',
+                                  model: job.model || '',
+                                  brand: job.brand || '',
+                                  refrigerant: job.refrigerant || 'R32',
+                                  serialNo: job.serialNo || '',
+                                  lowBefore: job.lowBefore || '',
+                                  highBefore: job.highBefore || '',
+                                  lowAfter: job.lowAfter || '',
+                                  highAfter: job.highAfter || '',
+                                  current: job.current || '',
+                                  notes: job.notes || '',
+                                })
+                                setSubTab(0)
+                                document.getElementById('job-customer')?.scrollIntoView({ behavior: 'smooth' })
+                              }}
+                              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-400 text-xs font-bold transition-all tap-target"
+                            >
+                              <Download size={14} />
+                              ดึงข้อมูลไปที่ฟอร์ม
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (window.confirm('คุณต้องการลบประวัติงานนี้ใช่หรือไม่?')) {
+                                  await handleDeleteJob(job)
+                                }
+                              }}
+                              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold transition-all tap-target"
+                            >
+                              <Trash2 size={14} />
+                              ลบรายการนี้
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
