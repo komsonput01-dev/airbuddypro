@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
 import {
-  Wind, Zap, Stethoscope, BookOpen, Camera, Library, Settings,
+  Wind, Zap, Stethoscope, BookOpen, Camera, Library, Settings, Menu,
   Sun, ChevronRight, ChevronLeft, CheckCircle, ArrowRight, Scan,
   AlertCircle, Search, ChevronDown, ChevronUp, RotateCcw,
   AlertTriangle, Plus, Save, Copy, Check, MessageCircle,
