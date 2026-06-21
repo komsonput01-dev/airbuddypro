@@ -4094,7 +4094,7 @@ function NameplateScannerPanel({ onNavigate }) {
                 <AlertCircle size={32} className="text-amber-500 mx-auto" />
                 <p className="text-xs font-bold text-slate-400">{error}</p>
                 <div className="flex flex-col gap-2 w-full">
-                  <div className="block md:hidden w-full">
+                  <div className="block lg:hidden w-full">
                     <label 
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-purple-500/30 bg-purple-500/20 text-purple-300 font-bold text-sm hover:bg-purple-500/30 transition-all cursor-pointer"
                     >
@@ -4121,13 +4121,13 @@ function NameplateScannerPanel({ onNavigate }) {
             <div className="flex gap-2">
               {cameraState === 'idle' && (
                 <div className="flex flex-col gap-2.5 w-full">
-                  <div className="hidden md:block w-full">
+                  <div className="hidden lg:block w-full">
                     <button id="scanner-start" onClick={startCamera} className="btn-primary w-full" style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
                       <Camera size={20} />
                       เปิดระบบกล้องสแกนสด (Webcam)
                     </button>
                   </div>
-                  <div className="block md:hidden w-full">
+                  <div className="block lg:hidden w-full">
                     <label 
                       className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 font-bold text-sm hover:bg-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer"
                     >
@@ -5449,7 +5449,7 @@ function MainAppContent() {
     : availableTabs.filter(t => t.id < 4)
 
   const mobileBottomTabs = user.role === 'admin'
-    ? [availableTabs.find(t => t.id === 6), ...availableTabs.filter(t => t.id < 3)].filter(Boolean)
+    ? [availableTabs.find(t => t.id === 6), ...availableTabs.filter(t => t.id < 4)].filter(Boolean)
     : availableTabs.filter(t => t.id < 4)
 
   const drawerTabs = availableTabs.filter(t => t.id === 4 || t.id === 5)
