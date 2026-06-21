@@ -5,7 +5,7 @@ import {
   AlertCircle, Search, ChevronDown, ChevronUp, RotateCcw,
   AlertTriangle, Plus, Save, Copy, Check, MessageCircle,
   Wifi, WifiOff, Trash2, FileText, ExternalLink, Clock, X,
-  Eye, Star, Download, ImagePlus, Brain, Sparkles, Send
+  Eye, Star, Download, ImagePlus, Brain, Sparkles, Send, MapPin
 } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { 
@@ -855,7 +855,8 @@ async function syncQueue(onProgress) {
     // 2. Sync to Supabase
     if (hasSupabase) {
       try {
-        const { error } = await supabase.from('jobs').insert(record)
+        const { lat, lon, ...supabaseRecord } = record
+        const { error } = await supabase.from('jobs').insert(supabaseRecord)
         if (!error) supabaseSuccess = true
       } catch (err) {
         console.error('Offline sync to Supabase failed:', err)
@@ -916,7 +917,8 @@ async function saveJob(record, isOnline) {
   // 2. Save to Supabase
   if (hasSupabase) {
     try {
-      const { error } = await supabase.from('jobs').insert(record)
+      const { lat, lon, ...supabaseRecord } = record
+      const { error } = await supabase.from('jobs').insert(supabaseRecord)
       if (!error) supabaseSaved = true
     } catch (err) {
       console.error('Failed to save to Supabase:', err)
@@ -986,6 +988,7 @@ const EMPTY_FORM = {
   refrigerant: 'R32', serialNo: '',
   lowBefore: '', highBefore: '', lowAfter: '', highAfter: '',
   current: '', notes: '',
+  lat: '', lon: '',
 }
 
 function generateLINEReport({ form, sharedBTU, unitSystem }) {
@@ -2191,7 +2194,62 @@ function JobLoggerPanel() {
     }
   }, [scannedJobData])
 
+  const [gettingLoc, setGettingLoc] = useState(false)
+
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }))
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      alert('❌ เบราว์เซอร์ของคุณไม่สนับสนุนระบบระบุตำแหน่งพิกัด (Geolocation)')
+      return
+    }
+    setGettingLoc(true)
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        setForm(prev => ({ ...prev, lat: latitude.toString(), lon: longitude.toString() }))
+        
+        try {
+          // Reverse geocoding using OpenStreetMap Nominatim API (Free and open-source)
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=th`, {
+            headers: {
+              'Accept-Language': 'th,en;q=0.9',
+              'User-Agent': 'AirBuddyPro/1.2'
+            }
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data && data.display_name) {
+              let address = data.display_name;
+              if (data.address) {
+                const a = data.address;
+                const road = a.road || a.suburb || '';
+                const city = a.city || a.town || a.municipality || a.county || '';
+                const province = a.state || '';
+                if (road || city) {
+                  address = `${road}${road && city ? ', ' : ''}${city}${province ? ', ' : ''}${province}`;
+                }
+              }
+              setForm(prev => ({ ...prev, location: address }))
+            }
+          }
+        } catch (err) {
+          console.error('Reverse Geocoding failed:', err)
+        } finally {
+          setGettingLoc(false)
+        }
+      },
+      (error) => {
+        setGettingLoc(false)
+        if (error.code === error.PERMISSION_DENIED) {
+          alert('❌ กรุณาอนุญาตให้สิทธิ์การเข้าถึงตำแหน่งพิกัดบนเบราว์เซอร์ของคุณ')
+        } else {
+          alert(`❌ เกิดข้อผิดพลาดในการดึงตำแหน่ง: ${error.message}`)
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -2357,7 +2415,22 @@ function JobLoggerPanel() {
                 </div>
               </div>
               <div>
-                <label className="label">สถานที่ติดตั้ง / สาขา</label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="label mb-0">สถานที่ติดตั้ง / สาขา</label>
+                  <button
+                    type="button"
+                    onClick={handleGetLocation}
+                    disabled={gettingLoc}
+                    className="flex items-center gap-1.5 text-xs font-black text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-3 py-1.5 rounded-xl transition-all tap-target active:scale-95 shadow-lg shadow-emerald-500/5"
+                  >
+                    {gettingLoc ? (
+                      <div className="w-3.5 h-3.5 border-2 border-emerald-400/40 border-t-emerald-400 rounded-full animate-spin" />
+                    ) : (
+                      <MapPin size={14} className="text-emerald-400" />
+                    )}
+                    {gettingLoc ? 'กำลังดึงพิกัด...' : 'ลงพิกัดปัจจุบัน'}
+                  </button>
+                </div>
                 <input
                   id="job-location"
                   type="text"
@@ -2366,6 +2439,32 @@ function JobLoggerPanel() {
                   onChange={e => set('location', e.target.value)}
                   className="input-field font-semibold"
                 />
+              </div>
+
+              {/* Latitude and Longitude Inputs */}
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="label">พิกัดละติจูด (LAT)</label>
+                  <input
+                    id="job-lat"
+                    type="text"
+                    placeholder="ละติจูด (อัตโนมัติ)"
+                    value={form.lat || ''}
+                    readOnly
+                    className="input-field font-semibold bg-slate-900/60 border-slate-800/80 text-slate-400 cursor-not-allowed select-all"
+                  />
+                </div>
+                <div>
+                  <label className="label">พิกัดลองจิจูด (LONG)</label>
+                  <input
+                    id="job-lon"
+                    type="text"
+                    placeholder="ลองจิจูด (อัตโนมัติ)"
+                    value={form.lon || ''}
+                    readOnly
+                    className="input-field font-semibold bg-slate-900/60 border-slate-800/80 text-slate-400 cursor-not-allowed select-all"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
@@ -2780,6 +2879,8 @@ function JobLoggerPanel() {
                                   highAfter: job.highAfter || '',
                                   current: job.current || '',
                                   notes: displayNotes,
+                                  lat: job.lat || '',
+                                  lon: job.lon || '',
                                 })
                                 setSubTab(0)
                                 document.getElementById('job-customer')?.scrollIntoView({ behavior: 'smooth' })
