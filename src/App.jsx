@@ -896,30 +896,97 @@ async function saveJob(record, isOnline) {
 
   let gasSaved = false
   let supabaseSaved = false
+  let action = 'inserted'
 
   // 1. Save to Google Sheets
   if (hasGas) {
     try {
-      await fetch(gasUrl, {
+      const response = await fetch(gasUrl, {
         method: 'POST',
-        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(record)
       })
+      if (response.ok) {
+        const json = await response.json()
+        if (json && json.action) {
+          action = json.action
+        }
+      } else {
+        // Fallback to no-cors
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(record)
+        })
+      }
       gasSaved = true
     } catch (err) {
-      console.error('Failed to save to Google Sheets:', err)
+      console.warn('Google Sheets normal fetch failed, falling back to no-cors mode:', err)
+      try {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(record)
+        })
+        gasSaved = true
+      } catch (err2) {
+        console.error('Fallback save to Google Sheets failed:', err2)
+      }
     }
   }
 
-  // 2. Save to Supabase
+  // 2. Save to Supabase (with Upsert logic)
   if (hasSupabase) {
     try {
       const { lat, lon, ...supabaseRecord } = record
-      const { error } = await supabase.from('jobs').insert(supabaseRecord)
-      if (!error) supabaseSaved = true
+      
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const todayEnd = new Date()
+      todayEnd.setHours(23, 59, 59, 999)
+
+      // ค้นหา record ของวันนี้ ที่มีหมายเลขเครื่องและชื่อลูกค้า/เบอร์โทรศัพท์ตรงกัน
+      const { data: candidates, error: searchError } = await supabase
+        .from('jobs')
+        .select('id, customer, phone')
+        .eq('serialNo', record.serialNo)
+        .gte('created_at', todayStart.toISOString())
+        .lte('created_at', todayEnd.toISOString())
+
+      const match = !searchError && candidates && candidates.find(c => 
+        (c.customer && c.customer.toString().trim() === record.customer.toString().trim()) || 
+        (c.phone && c.phone.toString().trim() === record.phone.toString().trim())
+      )
+
+      if (match) {
+        // อัปเดตทับ Record เดิม
+        const { error: updateError } = await supabase
+          .from('jobs')
+          .update(supabaseRecord)
+          .eq('id', match.id)
+        
+        if (!updateError) {
+          supabaseSaved = true
+          action = 'updated'
+        }
+      } else {
+        // บันทึกตัวใหม่ปกติ
+        const { error: insertError } = await supabase
+          .from('jobs')
+          .insert(supabaseRecord)
+        
+        if (!insertError) {
+          supabaseSaved = true
+        }
+      }
     } catch (err) {
       console.error('Failed to save to Supabase:', err)
     }
@@ -930,7 +997,7 @@ async function saveJob(record, isOnline) {
   const isSupabaseOk = !hasSupabase || supabaseSaved
 
   if (isGasOk && isSupabaseOk) {
-    return { saved: 'online' }
+    return { saved: 'online', action }
   } else {
     enqueue(record)
     return { saved: 'offline' }
@@ -975,11 +1042,35 @@ async function fetchAllJobs() {
 }
 
 function saveJobLocally(record) {
-  const jobs = JSON.parse(localStorage.getItem('abp_local_jobs') || '[]')
-  const newJob = { ...record, id: crypto.randomUUID(), created_at: new Date().toISOString() }
-  jobs.unshift(newJob)
-  localStorage.setItem('abp_local_jobs', JSON.stringify(jobs.slice(0, 100)))
-  return newJob
+  try {
+    const jobs = JSON.parse(localStorage.getItem('abp_local_jobs') || '[]')
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
+    const existingIndex = jobs.findIndex(j => {
+      const jobDate = new Date(j.created_at)
+      const isToday = jobDate >= todayStart
+      const matchesSerial = j.serialNo && j.serialNo.toString().trim() === record.serialNo.toString().trim()
+      const matchesCustomerOrPhone = 
+        (j.customer && j.customer.toString().trim() === record.customer.toString().trim()) || 
+        (j.phone && j.phone.toString().trim() === record.phone.toString().trim())
+      return isToday && matchesSerial && matchesCustomerOrPhone
+    })
+
+    let action = 'inserted'
+    if (existingIndex > -1) {
+      jobs[existingIndex] = { ...jobs[existingIndex], ...record, updated_at: new Date().toISOString() }
+      action = 'updated'
+    } else {
+      const newJob = { ...record, id: crypto.randomUUID(), created_at: new Date().toISOString() }
+      jobs.unshift(newJob)
+    }
+    localStorage.setItem('abp_local_jobs', JSON.stringify(jobs.slice(0, 100)))
+    return action
+  } catch (err) {
+    console.error('Failed to save job locally:', err)
+    return 'inserted'
+  }
 }
 
 const BOOKMARKS_KEY = 'abp_recent_docs'
@@ -2348,6 +2439,8 @@ function JobLoggerPanel() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(null)
+  const [saveAction, setSaveAction] = useState(null) // 'inserted' | 'updated' | null
+  const [lastSavedForm, setLastSavedForm] = useState(null)
   const [lineReport, setLineReport] = useState('')
   const [copied, setCopied] = useState(false)
   const [showReport, setShowReport] = useState(false)
@@ -2446,25 +2539,39 @@ function JobLoggerPanel() {
     navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options)
   }
 
+  const isFormUnchanged = lastSavedForm && Object.keys(EMPTY_FORM).every(key => form[key] === lastSavedForm[key])
+
   const handleSave = async () => {
     if (!form.customer || !form.customer.trim()) {
       alert('⚠️ กรุณากรอก "ชื่อลูกค้า" ก่อนทำการบันทึกประวัติ!')
+      return
+    }
+    if (isFormUnchanged) {
+      alert('⚠️ ข้อมูลไม่มีการเปลี่ยนแปลง ไม่สามารถบันทึกงานซ้ำได้!')
       return
     }
     setSaving(true)
     const record = { ...form, btu: sharedBTU || null, unit: unitSystem }
     let result
     if (!isOnline) {
-      saveJobLocally(record)
-      result = { saved: 'offline' }
+      const action = saveJobLocally(record)
+      result = { saved: 'offline', action }
     } else {
       result = await saveJob(record, isOnline)
-      if (result.saved === 'offline') saveJobLocally(record)
+      if (result.saved === 'offline') {
+        const action = saveJobLocally(record)
+        result.action = action
+      }
     }
     setSaved(result.saved)
+    setSaveAction(result.action || 'inserted')
+    setLastSavedForm({ ...form })
     setSaving(false)
     setHistoryRefresh(p => p + 1)
-    setTimeout(() => setSaved(null), 4000)
+    setTimeout(() => {
+      setSaved(null)
+      setSaveAction(null)
+    }, 4000)
   }
 
   const handleGenerateReport = () => {
@@ -2579,6 +2686,7 @@ function JobLoggerPanel() {
                   onClick={() => {
                     setScannedJobData(null)
                     setForm(EMPTY_FORM)
+                    setLastSavedForm(null)
                   }}
                   className="text-xs text-purple-400 font-bold hover:underline"
                 >
@@ -2874,13 +2982,18 @@ function JobLoggerPanel() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-2">
-                <button id="job-save" onClick={handleSave} disabled={saving} className="btn-success">
+                <button
+                  id="job-save"
+                  onClick={handleSave}
+                  disabled={saving || isFormUnchanged}
+                  className={`btn-success ${isFormUnchanged ? 'opacity-65 cursor-not-allowed' : ''}`}
+                >
                   {saving ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <Save size={20} />
                   )}
-                  {saving ? 'กำลังบันทึก...' : 'บันทึกงาน'}
+                  {isFormUnchanged ? 'บันทึกข้อมูลเรียบร้อยแล้ว' : (saving ? 'กำลังบันทึก...' : 'บันทึกงาน')}
                 </button>
                 <button
                   id="job-line-report"
@@ -2901,7 +3014,9 @@ function JobLoggerPanel() {
                 >
                   {saved === 'online' ? <Wifi size={18} /> : <WifiOff size={18} />}
                   <span className="font-bold">
-                    {saved === 'online' ? 'บันทึกข้อมูลงานขึ้นระบบคลาวด์เสร็จสิ้น' : 'จัดเก็บออฟไลน์ในเครื่องชั่วคราว'}
+                    {saved === 'online' 
+                      ? (saveAction === 'updated' ? '✅ อัปเดตข้อมูลทับงานเดิมวันนี้บนคลาวด์สำเร็จ' : '✅ บันทึกข้อมูลงานขึ้นระบบคลาวด์เสร็จสิ้น') 
+                      : (saveAction === 'updated' ? '📦 อัปเดตข้อมูลทับงานเดิมวันนี้ในเครื่องสำเร็จ' : '📦 จัดเก็บออฟไลน์ในเครื่องชั่วคราว')}
                   </span>
                 </div>
               )}
