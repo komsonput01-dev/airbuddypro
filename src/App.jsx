@@ -5457,7 +5457,7 @@ function AdminDashboardPanel() {
 
 // ─── MAIN APP COMPONENT ──────────────────────────────────────────────────────
 function MainAppContent() {
-  const { powerSaving, isOnline, appTheme, user, setUser } = useApp()
+  const { powerSaving, isOnline, appTheme, user, setUser, setPromptPayId } = useApp()
   const [activeTab, setActiveTab] = useState(user?.role === 'admin' ? 6 : 0)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
