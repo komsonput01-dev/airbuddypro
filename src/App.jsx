@@ -2223,14 +2223,8 @@ function JobLoggerPanel() {
   }
 
   const handleOpenLINE = () => {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
-    const shareUrl = isLocal ? 'https://airbuddypro.vercel.app' : window.location.origin;
-    const url = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(lineReport)}`;
-    const width = 450;
-    const height = 650;
-    const left = window.screen.width / 2 - width / 2;
-    const top = window.screen.height / 2 - height / 2;
-    window.open(url, 'LINE Share', `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`)
+    const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
+    window.open(url, '_blank');
   }
 
   const handleDeleteJob = async (job) => {
