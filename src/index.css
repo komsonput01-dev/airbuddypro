@@ -26,6 +26,24 @@
     color: #f1f5f9;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
+    position: relative;
+    z-index: 0;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/ac_modern_bg.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.12; /* Faint opacity */
+    z-index: -1;
+    pointer-events: none;
   }
 
   /* Power saving mode override */
@@ -406,6 +424,10 @@
   [data-theme="light"] {
     background-color: #f8fafc;
     color: #0f172a;
+  }
+
+  [data-theme="light"] body::before {
+    opacity: 0.06;
   }
 
   [data-theme="light"] .card {
