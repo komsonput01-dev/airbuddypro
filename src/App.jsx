@@ -2154,6 +2154,188 @@ function DiagnosticPanel() {
   )
 }
 
+// ฟังก์ชันช่วยดึงที่อยู่จาก Google Maps Geocoding API address_components
+const extractGoogleAddress = (components) => {
+  const result = {}
+  components.forEach(c => {
+    const types = c.types || []
+    if (types.includes('route')) {
+      result.road = c.long_name
+    } else if (types.includes('sublocality_level_2')) {
+      if (c.long_name.includes('หมู่') || c.long_name.includes('ม.')) {
+        result.village = c.long_name
+      } else {
+        result.subdistrict = c.long_name
+      }
+    } else if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
+      result.subdistrict = c.long_name
+    } else if (types.includes('administrative_area_level_2')) {
+      result.district = c.long_name
+    } else if (types.includes('administrative_area_level_1')) {
+      result.province = c.long_name
+    }
+  })
+  return result
+}
+
+// ฟังก์ชันแปลงที่อยู่ภาษาไทยให้สั้นกระชับ (Reverse Geocoding Address Formatter)
+const formatThaiAddress = (inputData) => {
+  if (!inputData) return ''
+
+  let a = {}
+  // รองรับรูปแบบ input data ที่หลากหลาย (Google Maps & OpenStreetMap Nominatim)
+  if (Array.isArray(inputData)) {
+    a = extractGoogleAddress(inputData)
+  } else if (inputData.address_components && Array.isArray(inputData.address_components)) {
+    a = extractGoogleAddress(inputData.address_components)
+  } else if (inputData.results && Array.isArray(inputData.results) && inputData.results[0] && inputData.results[0].address_components) {
+    a = extractGoogleAddress(inputData.results[0].address_components)
+  } else {
+    a = inputData.address || inputData
+  }
+
+  // ดึงข้อมูลส่วนประกอบของที่อยู่เบื้องต้น
+  let road = a.road || a.street || a.path || ''
+  let village = a.village || a.hamlet || a.croft || ''
+  let subdistrict = a.subdistrict || a.suburb || a.municipality || a.neighbourhood || a.quarter || ''
+  let district = a.district || a.city_district || a.county || ''
+  let province = a.province || a.state || a.province_name || a.region || ''
+
+  // จัดการเช็คและคัดกรองจาก a.city และ a.town หากยังขาดข้อมูลระดับตำบล/อำเภอ หรือดึงข้อมูลผิดระดับ
+  const checkCityTown = (val) => {
+    if (!val) return
+    val = val.toString().trim()
+    if (/^(ตำบล|แขวง)/.test(val)) {
+      if (!subdistrict) subdistrict = val
+    } else if (/^(อำเภอ|เขต)/.test(val)) {
+      if (!district) district = val
+    } else if (!district && !subdistrict) {
+      district = val
+    }
+  }
+
+  checkCityTown(a.city)
+  checkCityTown(a.town)
+
+  // จัดการกรณีตัวแปรดึงสลับระดับกัน (Self-Correction Logic)
+  // - ถ้า district ดันมีคำว่า "ตำบล" หรือ "แขวง" ให้ย้ายไป subdistrict
+  if (district && /^(ตำบล|แขวง)/.test(district.toString().trim())) {
+    if (!subdistrict) subdistrict = district
+    district = ''
+  }
+  // - ถ้า subdistrict ดันมีคำว่า "อำเภอ" หรือ "เขต" ให้ย้ายไป district
+  if (subdistrict && /^(อำเภอ|เขต)/.test(subdistrict.toString().trim())) {
+    if (!district) district = subdistrict
+    subdistrict = ''
+  }
+  // - ถ้า district ดันมีคำว่า "จังหวัด" ให้ย้ายไป province
+  if (district && /^จังหวัด/.test(district.toString().trim())) {
+    if (!province) province = district
+    district = ''
+  }
+  // - ถ้า subdistrict ดันมีคำว่า "จังหวัด" ให้ย้ายไป province
+  if (subdistrict && /^จังหวัด/.test(subdistrict.toString().trim())) {
+    if (!province) province = subdistrict
+    subdistrict = ''
+  }
+
+  // ล้างค่าช่องว่างส่วนเกิน
+  const clean = (str) => str ? str.toString().trim() : ''
+  road = clean(road)
+  village = clean(village)
+  subdistrict = clean(subdistrict)
+  district = clean(district)
+  province = clean(province)
+
+  // ตรวจสอบว่าเป็นกรุงเทพมหานครหรือไม่
+  const isBangkok = province.includes('กรุงเทพมหานคร') || 
+                    province === 'กรุงเทพมหานคร' || 
+                    province === 'กรุงเทพฯ' ||
+                    province === 'กทม' ||
+                    district.includes('กรุงเทพมหานคร') ||
+                    subdistrict.includes('กรุงเทพมหานคร')
+
+  // ถนน -> ถ.
+  if (road) {
+    if (road.startsWith('ถนน')) {
+      road = road.replace(/^ถนน\s*/, 'ถ.')
+    } else if (!road.startsWith('ถ.') && !road.startsWith('ซอย') && !road.startsWith('ซ.') && !road.startsWith('ตรอก')) {
+      road = 'ถ.' + road
+    }
+  }
+
+  // หมู่ที่ / หมู่ -> ม.
+  if (village) {
+    if (/^(หมู่ที่|หมู่|ม\.)/.test(village)) {
+      village = village.replace(/^(หมู่ที่|หมู่)\s*/, 'ม.')
+    } else {
+      village = 'ม.' + village
+    }
+  }
+
+  if (isBangkok) {
+    province = 'จ.กรุงเทพฯ'
+    
+    // กทม: เขต -> อ.
+    if (district) {
+      if (/^(เขต|อำเภอ|อ\.)/.test(district)) {
+        district = district.replace(/^(เขต|อำเภอ)\s*/, 'อ.')
+      } else {
+        district = 'อ.' + district
+      }
+      if (district.includes('กรุงเทพมหานคร') || district === 'อ.กรุงเทพฯ' || district === 'อ.กทม') {
+        district = ''
+      }
+    }
+    
+    // กทม: แขวง -> ต.
+    if (subdistrict) {
+      if (/^(แขวง|ตำบล|ต\.)/.test(subdistrict)) {
+        subdistrict = subdistrict.replace(/^(แขวง|ตำบล)\s*/, 'ต.')
+      } else {
+        subdistrict = 'ต.' + subdistrict
+      }
+    }
+  } else {
+    // จังหวัดอื่น ๆ -> จ.
+    if (province) {
+      if (province.startsWith('จังหวัด')) {
+        province = province.replace(/^จังหวัด\s*/, 'จ.')
+      } else if (!province.startsWith('จ.')) {
+        province = 'จ.' + province
+      }
+    }
+    
+    // อำเภอ -> อ.
+    if (district) {
+      if (/^(อำเภอ|เขต|อ\.)/.test(district)) {
+        district = district.replace(/^(อำเภอ|เขต)\s*/, 'อ.')
+      } else {
+        district = 'อ.' + district
+      }
+    }
+    
+    // ตำบล -> ต.
+    if (subdistrict) {
+      if (/^(ตำบล|แขวง|ต\.)/.test(subdistrict)) {
+        subdistrict = subdistrict.replace(/^(ตำบล|แขวง)\s*/, 'ต.')
+      } else {
+        subdistrict = 'ต.' + subdistrict
+      }
+    }
+  }
+
+  // รวมส่วนต่างๆ คั่นด้วยเครื่องหมายจุลภาคพร้อมเว้นวรรค
+  const parts = []
+  if (road) parts.push(road)
+  if (village) parts.push(village)
+  if (subdistrict) parts.push(subdistrict)
+  if (district) parts.push(district)
+  if (province) parts.push(province)
+
+  return parts.join(', ')
+}
+
 // 4. Job Logger & Refrigerant Table Tab Component
 function JobLoggerPanel() {
   const { unitSystem, isOnline, appTheme } = useApp()
@@ -2221,65 +2403,13 @@ function JobLoggerPanel() {
         })
         if (res.ok) {
           const data = await res.json()
-          if (data && data.address) {
-            const a = data.address
-            
-            // Extract components
-            let road = a.road || ''
-            let village = a.village || a.hamlet || a.croft || ''
-            let subdistrict = a.subdistrict || a.suburb || a.neighbourhood || a.quarter || ''
-            let district = a.district || a.city || a.town || a.municipality || a.county || ''
-            let province = a.state || a.province || a.region || ''
-            
-            // Clean up
-            const clean = (str) => str ? str.toString().trim() : ''
-            road = clean(road)
-            village = clean(village)
-            subdistrict = clean(subdistrict)
-            district = clean(district)
-            province = clean(province)
-            
-            // Abbreviate road
-            if (road) road = road.replace(/^ถนน/, 'ถ.')
-            // Abbreviate village
-            if (village) village = village.replace(/^(หมู่ที่|หมู่)\s*/, 'ม.')
-            
-            // Check for Bangkok
-            const isBangkok = province.includes('กรุงเทพมหานคร') || 
-                              province === 'กรุงเทพมหานคร' || 
-                              district === 'กรุงเทพมหานคร' || 
-                              subdistrict === 'กรุงเทพมหานคร'
-                              
-            if (isBangkok) {
-              province = 'จ.กรุงเทพฯ'
-              if (district) {
-                district = district.replace(/^เขต\s*/, 'อ.')
-                if (district.includes('กรุงเทพมหานคร')) district = ''
-              }
-              if (subdistrict) {
-                subdistrict = subdistrict.replace(/^แขวง\s*/, 'ต.')
-              }
-            } else {
-              if (province) province = province.replace(/^จังหวัด\s*/, 'จ.')
-              if (district) district = district.replace(/^(อำเภอ|เขต)\s*/, 'อ.')
-              if (subdistrict) subdistrict = subdistrict.replace(/^(ตำบล|แขวง)\s*/, 'ต.')
-            }
-            
-            // Combine parts
-            const parts = []
-            if (road) parts.push(road)
-            if (village) parts.push(village)
-            if (subdistrict) parts.push(subdistrict)
-            if (district) parts.push(district)
-            if (province) parts.push(province)
-            
-            if (parts.length > 0) {
-              setForm(prev => ({ ...prev, location: parts.join(', ') }))
+          if (data) {
+            const formatted = formatThaiAddress(data)
+            if (formatted) {
+              setForm(prev => ({ ...prev, location: formatted }))
             } else if (data.display_name) {
               setForm(prev => ({ ...prev, location: data.display_name }))
             }
-          } else if (data && data.display_name) {
-            setForm(prev => ({ ...prev, location: data.display_name }))
           }
         }
       } catch (err) {
@@ -2317,6 +2447,10 @@ function JobLoggerPanel() {
   }
 
   const handleSave = async () => {
+    if (!form.customer || !form.customer.trim()) {
+      alert('⚠️ กรุณากรอก "ชื่อลูกค้า" ก่อนทำการบันทึกประวัติ!')
+      return
+    }
     setSaving(true)
     const record = { ...form, btu: sharedBTU || null, unit: unitSystem }
     let result
