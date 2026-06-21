@@ -2628,9 +2628,9 @@ function JobLoggerPanel() {
   useEffect(() => { loadHistory() }, [loadHistory, historyRefresh])
 
   const filteredJobs = jobs.filter(j =>
-    (j.customer || '').toLowerCase().includes(historySearch.toLowerCase()) ||
-    (j.model || '').toLowerCase().includes(historySearch.toLowerCase()) ||
-    (j.brand || '').toLowerCase().includes(historySearch.toLowerCase())
+    (j.customer || '').toString().toLowerCase().includes(historySearch.toLowerCase()) ||
+    (j.model || '').toString().toLowerCase().includes(historySearch.toLowerCase()) ||
+    (j.brand || '').toString().toLowerCase().includes(historySearch.toLowerCase())
   )
 
   const queueCount = getQueue().length
@@ -3132,14 +3132,14 @@ function JobLoggerPanel() {
               <div className="space-y-2.5 max-h-[300px] overflow-y-auto">
                 {filteredJobs.map((job, idx) => {
                   const expanded = expandedJobIdx === idx
-                  let displayLocation = job.location || ''
-                  let displayPhone = job.phone || ''
+                  let displayLocation = (job.location !== undefined && job.location !== null) ? job.location.toString() : ''
+                  let displayPhone = (job.phone !== undefined && job.phone !== null) ? job.phone.toString() : ''
                   if (displayLocation.includes(' / ') && !displayPhone) {
                     const parts = displayLocation.split(' / ')
                     displayLocation = parts[0]
                     displayPhone = parts[1]
                   }
-                  let displayNotes = job.notes || ''
+                  let displayNotes = (job.notes !== undefined && job.notes !== null) ? job.notes.toString() : ''
                   if (displayNotes.includes('ทดสอบการส่งข้อมูลอัตโนมัติเข้า Google Sheets สำเร็จเรียบร้อย!')) {
                     displayNotes = ''
                   }
