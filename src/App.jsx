@@ -2221,18 +2221,65 @@ function JobLoggerPanel() {
         })
         if (res.ok) {
           const data = await res.json()
-          if (data && data.display_name) {
-            let address = data.display_name;
-            if (data.address) {
-              const a = data.address;
-              const road = a.road || a.suburb || '';
-              const city = a.city || a.town || a.municipality || a.county || '';
-              const province = a.state || '';
-              if (road || city) {
-                address = `${road}${road && city ? ', ' : ''}${city}${province ? ', ' : ''}${province}`;
+          if (data && data.address) {
+            const a = data.address
+            
+            // Extract components
+            let road = a.road || ''
+            let village = a.village || a.hamlet || a.croft || ''
+            let subdistrict = a.subdistrict || a.suburb || a.neighbourhood || a.quarter || ''
+            let district = a.district || a.city || a.town || a.municipality || a.county || ''
+            let province = a.state || a.province || a.region || ''
+            
+            // Clean up
+            const clean = (str) => str ? str.toString().trim() : ''
+            road = clean(road)
+            village = clean(village)
+            subdistrict = clean(subdistrict)
+            district = clean(district)
+            province = clean(province)
+            
+            // Abbreviate road
+            if (road) road = road.replace(/^ถนน/, 'ถ.')
+            // Abbreviate village
+            if (village) village = village.replace(/^(หมู่ที่|หมู่)\s*/, 'ม.')
+            
+            // Check for Bangkok
+            const isBangkok = province.includes('กรุงเทพมหานคร') || 
+                              province === 'กรุงเทพมหานคร' || 
+                              district === 'กรุงเทพมหานคร' || 
+                              subdistrict === 'กรุงเทพมหานคร'
+                              
+            if (isBangkok) {
+              province = 'จ.กรุงเทพฯ'
+              if (district) {
+                district = district.replace(/^เขต\s*/, 'อ.')
+                if (district.includes('กรุงเทพมหานคร')) district = ''
               }
+              if (subdistrict) {
+                subdistrict = subdistrict.replace(/^แขวง\s*/, 'ต.')
+              }
+            } else {
+              if (province) province = province.replace(/^จังหวัด\s*/, 'จ.')
+              if (district) district = district.replace(/^(อำเภอ|เขต)\s*/, 'อ.')
+              if (subdistrict) subdistrict = subdistrict.replace(/^(ตำบล|แขวง)\s*/, 'ต.')
             }
-            setForm(prev => ({ ...prev, location: address }))
+            
+            // Combine parts
+            const parts = []
+            if (road) parts.push(road)
+            if (village) parts.push(village)
+            if (subdistrict) parts.push(subdistrict)
+            if (district) parts.push(district)
+            if (province) parts.push(province)
+            
+            if (parts.length > 0) {
+              setForm(prev => ({ ...prev, location: parts.join(', ') }))
+            } else if (data.display_name) {
+              setForm(prev => ({ ...prev, location: data.display_name }))
+            }
+          } else if (data && data.display_name) {
+            setForm(prev => ({ ...prev, location: data.display_name }))
           }
         }
       } catch (err) {
