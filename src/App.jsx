@@ -2617,12 +2617,14 @@ function JobLoggerPanel() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('')
 
   const netAmount = Math.max(0, (parseFloat(form.laborFee) || 0) + (parseFloat(form.materialFee) || 0) - (parseFloat(form.discount) || 0))
+  
+  const activePromptPayId = formatPhoneOrPromptPay(user?.promptpay_id || promptPayId)
+  const activeShopName = user?.name || shopName || 'ช่างแอร์ทั่วไป'
 
   // Generate PromptPay QR Code payload & image URL
   const handleOpenPayment = async () => {
-    const activePromptPayId = formatPhoneOrPromptPay(user?.promptpay_id || promptPayId)
-    if (!activePromptPayId) {
-      alert('⚠️ โปรดตั้งค่า "หมายเลขพร้อมเพย์" ในแท็บตั้งค่าระบบหรือล็อกอินช่างก่อนรับชำระเงิน!')
+    if (!activePromptPayId || activePromptPayId.toLowerCase() === 'empty') {
+      alert('⚠️ โปรดตั้งค่า "หมายเลขพร้อมเพย์" ในแท็บตั้งค่าระบบหรือหน้าบัญชีช่างก่อนรับชำระเงิน!')
       return
     }
     
@@ -3708,11 +3710,11 @@ function JobLoggerPanel() {
                     <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 space-y-2.5">
                       <div className="flex justify-between text-xs text-slate-400 font-semibold">
                         <span>บัญชีรับเงิน:</span>
-                        <span className="text-slate-200 font-mono font-bold">{promptPayId}</span>
+                        <span className="text-slate-200 font-mono font-bold">{activePromptPayId}</span>
                       </div>
                       <div className="flex justify-between text-xs text-slate-400 font-semibold">
                         <span>ชื่อร้านค้า/ช่าง:</span>
-                        <span className="text-slate-200 font-bold">{shopName || 'ช่างแอร์ทั่วไป'}</span>
+                        <span className="text-slate-200 font-bold">{activeShopName}</span>
                       </div>
                       <div className="flex justify-between items-center pt-2.5 border-t border-slate-800">
                         <span className="text-xs font-bold text-slate-300">ยอดเงินสุทธิ:</span>
