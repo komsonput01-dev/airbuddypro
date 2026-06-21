@@ -2722,6 +2722,10 @@ function JobLoggerPanel() {
                     displayLocation = parts[0]
                     displayPhone = parts[1]
                   }
+                  let displayNotes = job.notes || ''
+                  if (displayNotes.includes('ทดสอบการส่งข้อมูลอัตโนมัติเข้า Google Sheets สำเร็จเรียบร้อย!')) {
+                    displayNotes = ''
+                  }
                   return (
                     <div key={job.id || idx} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
                       <button
@@ -2752,10 +2756,10 @@ function JobLoggerPanel() {
                               <p className="text-slate-200 text-sm font-bold">{val || '-'}</p>
                             </div>
                           ))}
-                          {job.notes && (
+                          {displayNotes && (
                             <div className="col-span-2 bg-slate-900/30 p-2.5 rounded-lg border border-slate-900">
                               <p className="text-slate-500 uppercase tracking-wide text-[9px] mb-0.5">หมายเหตุหน้างาน</p>
-                              <p className="text-slate-300 text-sm">{job.notes}</p>
+                              <p className="text-slate-300 text-sm">{displayNotes}</p>
                             </div>
                           )}
 
@@ -2775,7 +2779,7 @@ function JobLoggerPanel() {
                                   lowAfter: job.lowAfter || '',
                                   highAfter: job.highAfter || '',
                                   current: job.current || '',
-                                  notes: job.notes || '',
+                                  notes: displayNotes,
                                 })
                                 setSubTab(0)
                                 document.getElementById('job-customer')?.scrollIntoView({ behavior: 'smooth' })
