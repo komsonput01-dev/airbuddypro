@@ -2809,6 +2809,7 @@ function NameplateScannerPanel({ onNavigate }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const imageInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
   const [cameraState, setCameraState] = useState('idle') // idle | requesting | active | denied | scanning | done
   const [scanResult, setScanResult] = useState(null)
   const [error, setError] = useState('')
@@ -2824,6 +2825,9 @@ function NameplateScannerPanel({ onNavigate }) {
     setCameraState('requesting')
     setError('')
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('เบราว์เซอร์ไม่รองรับกล้องเว็บแคมผ่าน HTTP (ต้องใช้เว็บแบบ HTTPS) หรือไม่มีสิทธิ์เข้าใช้งานกล้อง')
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } }
       })
@@ -2834,7 +2838,7 @@ function NameplateScannerPanel({ onNavigate }) {
       setCameraState('active')
     } catch (err) {
       setCameraState('denied')
-      setError('ไม่สามารถเปิดใช้งานกล้องในขณะนี้ได้ (ระบบจะเปิดระบบสแกนจำลองสำหรับตรวจสอบการติดตั้ง)')
+      setError(err.message || 'ไม่สามารถเปิดใช้งานกล้องในขณะนี้ได้ (ระบบจะเปิดระบบสแกนจำลองสำหรับตรวจสอบการติดตั้ง)')
     }
   }
 
@@ -2971,12 +2975,21 @@ function NameplateScannerPanel({ onNavigate }) {
             )}
 
             {cameraState === 'denied' && (
-              <div className="text-center p-5 space-y-2.5">
+              <div className="text-center p-5 space-y-3.5">
                 <AlertCircle size={32} className="text-amber-500 mx-auto" />
                 <p className="text-xs font-bold text-slate-400">{error}</p>
-                <button onClick={handleScan} className="text-xs font-black text-purple-400 border border-purple-500/20 px-3 py-1.5 rounded-lg bg-purple-500/5 hover:bg-purple-500/10">
-                  คลิกเพื่อจำลองสแกนทันที (Bypass)
-                </button>
+                <div className="flex flex-col gap-2 w-full">
+                  <button 
+                    onClick={() => cameraInputRef.current?.click()} 
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-purple-500/30 bg-purple-500/20 text-purple-300 font-bold text-sm hover:bg-purple-500/30 transition-all tap-target"
+                  >
+                    <Camera size={18} />
+                    ถ่ายรูปด้วยกล้องจริงบนมือถือ (Native Camera)
+                  </button>
+                  <button onClick={handleScan} className="text-xs font-black text-purple-400 border border-purple-500/20 px-3 py-1.5 rounded-lg bg-purple-500/5 hover:bg-purple-500/10 w-full">
+                    คลิกเพื่อจำลองสแกนทันที (Bypass)
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -2984,10 +2997,19 @@ function NameplateScannerPanel({ onNavigate }) {
           <div className="space-y-3">
             <div className="flex gap-2">
               {cameraState === 'idle' && (
-                <button id="scanner-start" onClick={startCamera} className="btn-primary flex-1" style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
-                  <Camera size={20} />
-                  เปิดระบบกล้องบันทึกเพลท
-                </button>
+                <div className="flex flex-col gap-2.5 w-full">
+                  <button id="scanner-start" onClick={startCamera} className="btn-primary w-full" style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
+                    <Camera size={20} />
+                    เปิดระบบกล้องสแกนสด (Webcam)
+                  </button>
+                  <button 
+                    onClick={() => cameraInputRef.current?.click()} 
+                    className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 font-bold text-sm hover:bg-purple-500/20 hover:border-purple-500/40 transition-all tap-target"
+                  >
+                    <Camera size={18} />
+                    ถ่ายรูปด้วยกล้องจริงบนมือถือ (Native Camera)
+                  </button>
+                </div>
               )}
 
               {cameraState === 'active' && (
@@ -3029,6 +3051,14 @@ function NameplateScannerPanel({ onNavigate }) {
                   ref={imageInputRef}
                   type="file"
                   accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
                   className="hidden"
                   onChange={handleImageUpload}
                 />
