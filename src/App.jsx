@@ -770,7 +770,14 @@ export function AppProvider({ children }) {
 
   useEffect(() => { localStorage.setItem('abp_shop_name', shopName) }, [shopName])
   useEffect(() => { localStorage.setItem('abp_shop_address', shopAddress) }, [shopAddress])
-  useEffect(() => { localStorage.setItem('abp_promptpay_id', promptPayId) }, [promptPayId])
+  useEffect(() => { 
+    localStorage.setItem('abp_promptpay_id', promptPayId) 
+    if (user && user.user_id && supabase) {
+      supabase.from('profiles').update({ promptpay_id: promptPayId }).eq('id', user.user_id).then(({error}) => {
+        if (error) console.error('Failed to update promptpay_id in Supabase', error)
+      })
+    }
+  }, [promptPayId, user])
 
   useEffect(() => { localStorage.setItem('abp_unit', unitSystem) }, [unitSystem])
   useEffect(() => { localStorage.setItem('abp_font', fontSize) }, [fontSize])
@@ -873,11 +880,7 @@ function dequeue(id) {
 }
 
 async function syncQueue(onProgress) {
-  const gasUrl = import.meta.env.VITE_GAS_URL
-  const hasGas = !!gasUrl
-  const hasSupabase = !!(supabaseConfigured && supabase)
-
-  if (!hasGas && !hasSupabase) return { synced: 0, failed: 0 }
+  if (!supabase) return { synced: 0, failed: 0 }
   const queue = getQueue()
   if (queue.length === 0) return { synced: 0, failed: 0 }
 
@@ -886,41 +889,40 @@ async function syncQueue(onProgress) {
 
   for (const item of queue) {
     const { _id, _queuedAt, ...record } = item
-    let gasSuccess = false
     let supabaseSuccess = false
 
-    // 1. Sync to Google Sheets (GAS)
-    if (hasGas) {
-      try {
-        await fetch(gasUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'text/plain'
-          },
-          body: JSON.stringify(record)
-        })
-        gasSuccess = true
-      } catch (err) {
-        console.error('Offline sync to GAS failed:', err)
+    try {
+      const { lat, lon, ...rest } = record
+      const supabaseRecord = {
+        date: rest.created_at || new Date().toISOString(),
+        customer_name: rest.customer || '',
+        customer_phone: rest.phone || '',
+        customer_address: rest.location || '',
+        symptoms: rest.notes || '',
+        ac_model: `${rest.brand || ''} ${rest.model || ''} ${rest.serialNo ? '(SN:'+rest.serialNo+')' : ''}`.trim(),
+        repair_details: JSON.stringify({
+          lowBefore: rest.lowBefore,
+          highBefore: rest.highBefore,
+          lowAfter: rest.lowAfter,
+          highAfter: rest.highAfter,
+          current: rest.current,
+          refrigerant: rest.refrigerant,
+          btu: rest.btu,
+          unit: rest.unit,
+          lat, lon
+        }),
+        cost: parseFloat(rest.laborFee || 0) + parseFloat(rest.materialFee || 0) - parseFloat(rest.discount || 0),
+        status: 'completed',
+        technician_id: rest.tech_id || null
       }
+      
+      const { error } = await supabase.from('job_records').insert(supabaseRecord)
+      if (!error) supabaseSuccess = true
+    } catch (err) {
+      console.error('Offline sync to Supabase failed:', err)
     }
 
-    // 2. Sync to Supabase
-    if (hasSupabase) {
-      try {
-        const { lat, lon, ...supabaseRecord } = record
-        const { error } = await supabase.from('jobs').insert(supabaseRecord)
-        if (!error) supabaseSuccess = true
-      } catch (err) {
-        console.error('Offline sync to Supabase failed:', err)
-      }
-    }
-
-    const isGasOk = !hasGas || gasSuccess
-    const isSupabaseOk = !hasSupabase || supabaseSuccess
-
-    if (isGasOk && isSupabaseOk) {
+    if (supabaseSuccess) {
       dequeue(_id)
       synced++
       onProgress?.({ synced, failed, total: queue.length })
@@ -937,124 +939,84 @@ async function saveJob(record, isOnline) {
     ...record,
     phone: formatPhoneOrPromptPay(record.phone)
   }
-  const gasUrl = import.meta.env.VITE_GAS_URL
-  const hasGas = !!gasUrl
-  const hasSupabase = !!(supabaseConfigured && supabase)
 
-  if (!isOnline) {
+  if (!isOnline || !supabase) {
     enqueue(normalizedRecord)
     return { saved: 'offline' }
   }
 
-  // If no database configured, fallback to offline local saving
-  if (!hasGas && !hasSupabase) {
-    enqueue(normalizedRecord)
-    return { saved: 'offline' }
-  }
-
-  let gasSaved = false
   let supabaseSaved = false
   let action = 'inserted'
 
-  // 1. Save to Google Sheets
-  if (hasGas) {
-    try {
-      const response = await fetch(gasUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain'
-        },
-        body: JSON.stringify(normalizedRecord)
-      })
-      if (response.ok) {
-        const json = await response.json()
-        if (json && json.action) {
-          action = json.action
-        }
-      } else {
-        // Fallback to no-cors
-        await fetch(gasUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'text/plain'
-          },
-          body: JSON.stringify(normalizedRecord)
-        })
-      }
-      gasSaved = true
-    } catch (err) {
-      console.warn('Google Sheets normal fetch failed, falling back to no-cors mode:', err)
-      try {
-        await fetch(gasUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'text/plain'
-          },
-          body: JSON.stringify(normalizedRecord)
-        })
-        gasSaved = true
-      } catch (err2) {
-        console.error('Fallback save to Google Sheets failed:', err2)
-      }
+  try {
+    const { lat, lon, ...rest } = normalizedRecord
+    const supabaseRecord = {
+      date: rest.created_at || new Date().toISOString(),
+      customer_name: rest.customer || '',
+      customer_phone: rest.phone || '',
+      customer_address: rest.location || '',
+      symptoms: rest.notes || '',
+      ac_model: `${rest.brand || ''} ${rest.model || ''} ${rest.serialNo ? '(SN:'+rest.serialNo+')' : ''}`.trim(),
+      repair_details: JSON.stringify({
+        lowBefore: rest.lowBefore,
+        highBefore: rest.highBefore,
+        lowAfter: rest.lowAfter,
+        highAfter: rest.highAfter,
+        current: rest.current,
+        refrigerant: rest.refrigerant,
+        btu: rest.btu,
+        unit: rest.unit,
+        lat, lon
+      }),
+      cost: parseFloat(rest.laborFee || 0) + parseFloat(rest.materialFee || 0) - parseFloat(rest.discount || 0),
+      status: 'completed',
+      technician_id: rest.tech_id || null
     }
-  }
+    
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const todayEnd = new Date()
+    todayEnd.setHours(23, 59, 59, 999)
 
-  // 2. Save to Supabase (with Upsert logic)
-  if (hasSupabase) {
-    try {
-      const { lat, lon, ...supabaseRecord } = normalizedRecord
+    const { data: candidates, error: searchError } = await supabase
+      .from('job_records')
+      .select('id, customer_name, customer_phone, ac_model')
+      .gte('created_at', todayStart.toISOString())
+      .lte('created_at', todayEnd.toISOString())
+
+    const match = !searchError && candidates && candidates.find(c => {
+      const sameCustomer = (c.customer_name && c.customer_name.toString().trim() === rest.customer.toString().trim()) || 
+                           (c.customer_phone && c.customer_phone.toString().trim() === rest.phone.toString().trim());
+      const hasSerial = rest.serialNo && c.ac_model && c.ac_model.includes(`SN:${rest.serialNo}`);
+      const bothEmptySerial = !rest.serialNo && c.ac_model && !c.ac_model.includes('SN:');
+      const sameSerial = hasSerial || bothEmptySerial;
+      return sameCustomer && sameSerial;
+    })
+
+    if (match) {
+      const { error: updateError } = await supabase
+        .from('job_records')
+        .update(supabaseRecord)
+        .eq('id', match.id)
       
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
-      const todayEnd = new Date()
-      todayEnd.setHours(23, 59, 59, 999)
-
-      // ค้นหา record ของวันนี้ ที่มีหมายเลขเครื่องและชื่อลูกค้า/เบอร์โทรศัพท์ตรงกัน
-      const { data: candidates, error: searchError } = await supabase
-        .from('jobs')
-        .select('id, customer, phone')
-        .eq('serialNo', normalizedRecord.serialNo)
-        .gte('created_at', todayStart.toISOString())
-        .lte('created_at', todayEnd.toISOString())
-
-      const match = !searchError && candidates && candidates.find(c => 
-        (c.customer && c.customer.toString().trim() === normalizedRecord.customer.toString().trim()) || 
-        (c.phone && c.phone.toString().trim() === normalizedRecord.phone.toString().trim())
-      )
-
-      if (match) {
-        // อัปเดตทับ Record เดิม
-        const { error: updateError } = await supabase
-          .from('jobs')
-          .update(supabaseRecord)
-          .eq('id', match.id)
-        
-        if (!updateError) {
-          supabaseSaved = true
-          action = 'updated'
-        }
-      } else {
-        // บันทึกตัวใหม่ปกติ
-        const { error: insertError } = await supabase
-          .from('jobs')
-          .insert(supabaseRecord)
-        
-        if (!insertError) {
-          supabaseSaved = true
-        }
+      if (!updateError) {
+        supabaseSaved = true
+        action = 'updated'
       }
-    } catch (err) {
-      console.error('Failed to save to Supabase:', err)
+    } else {
+      const { error: insertError } = await supabase
+        .from('job_records')
+        .insert(supabaseRecord)
+      
+      if (!insertError) {
+        supabaseSaved = true
+      }
     }
+  } catch (err) {
+    console.error('Failed to save to Supabase:', err)
   }
 
-  // If either configured service succeeded, we consider it saved online
-  const isGasOk = !hasGas || gasSaved
-  const isSupabaseOk = !hasSupabase || supabaseSaved
-
-  if (isGasOk && isSupabaseOk) {
+  if (supabaseSaved) {
     return { saved: 'online', action }
   } else {
     enqueue(normalizedRecord)
@@ -1064,40 +1026,69 @@ async function saveJob(record, isOnline) {
 
 async function fetchAllJobs(user) {
   const localJobs = JSON.parse(localStorage.getItem('abp_local_jobs') || '[]')
-  const gasUrl = import.meta.env.VITE_GAS_URL
-  const hasGas = !!gasUrl
-  const hasSupabase = !!(supabaseConfigured && supabase)
-
+  
   let onlineJobs = []
 
-  if (hasGas) {
+  if (supabase) {
     try {
-      const url = new URL(gasUrl)
-      if (user) {
-        url.searchParams.append('techId', user.user_id || '')
-        url.searchParams.append('role', user.role || '')
-      }
-      const response = await fetch(url.toString())
-      if (response.ok) {
-        const data = await response.json()
-        if (Array.isArray(data)) {
-          onlineJobs = data
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch jobs from Google Sheets:', err)
-    }
-  } else if (hasSupabase) {
-    try {
-      let query = supabase.from('jobs').select('*')
+      let query = supabase.from('job_records').select('*')
+      // If not admin, only fetch own jobs
       if (user && user.role !== 'admin' && user.user_id) {
-        query = query.eq('tech_id', user.user_id)
+        query = query.eq('technician_id', user.user_id)
       }
       const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(100)
+        
       if (error) throw error
-      onlineJobs = data || []
+      
+      if (data) {
+        onlineJobs = data.map(job => {
+          let extra = {}
+          if (job.repair_details) {
+            try {
+              extra = JSON.parse(job.repair_details)
+            } catch (e) {
+              console.warn('Failed to parse repair_details', e)
+            }
+          }
+          
+          let brand = ''
+          let model = ''
+          let serialNo = ''
+          
+          if (job.ac_model) {
+            const parts = job.ac_model.split(' (SN:')
+            if (parts.length > 1) {
+              serialNo = parts[1].replace(')', '')
+              const bm = parts[0].trim().split(' ')
+              brand = bm[0] || ''
+              model = bm.slice(1).join(' ')
+            } else {
+              const bm = job.ac_model.trim().split(' ')
+              brand = bm[0] || ''
+              model = bm.slice(1).join(' ')
+            }
+          }
+
+          return {
+            id: job.id,
+            created_at: job.date || job.created_at,
+            customer: job.customer_name,
+            phone: job.customer_phone,
+            location: job.customer_address,
+            notes: job.symptoms,
+            brand: brand,
+            model: model,
+            serialNo: serialNo,
+            laborFee: job.cost,
+            materialFee: 0,
+            discount: 0,
+            tech_id: job.technician_id,
+            ...extra
+          }
+        })
+      }
     } catch (err) {
       console.error('Failed to fetch jobs from Supabase:', err)
     }
@@ -4810,31 +4801,31 @@ function SettingsPanel() {
             </h3>
             
             <div className="space-y-3 pt-1">
-              {/* Google Sheets Status */}
+              {/* Supabase Status */}
               <div className="flex flex-col gap-1.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-300">ตารางข้อมูล Google Sheets</span>
-                  {import.meta.env.VITE_GAS_URL ? (
+                  <span className="text-xs font-bold text-slate-300">ตารางข้อมูล Supabase</span>
+                  {import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY ? (
                     <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold border border-green-500/30">ตั้งค่าแล้ว</span>
                   ) : (
                     <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold border border-red-500/30">ไม่ได้ตั้งค่า</span>
                   )}
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono break-all leading-relaxed">
-                  {import.meta.env.VITE_GAS_URL 
-                    ? import.meta.env.VITE_GAS_URL.substring(0, 45) + "..." 
-                    : "ไม่มีข้อมูล URL (โปรดเช็ค VITE_GAS_URL ในตัวแปร Vercel)"}
+                  {import.meta.env.VITE_SUPABASE_URL 
+                    ? import.meta.env.VITE_SUPABASE_URL.substring(0, 45) + "..." 
+                    : "ไม่มีข้อมูล URL (โปรดเช็ค VITE_SUPABASE_URL ในตัวแปร)"}
                 </p>
-                {import.meta.env.VITE_GAS_URL && (
+                {supabase && (
                   <button
                     type="button"
                     onClick={async () => {
                       try {
-                        const res = await fetch(import.meta.env.VITE_GAS_URL)
-                        if (res.ok) {
-                          alert("🟢 เชื่อมต่อสำเร็จ! สามารถเขียนและดึงประวัติ Google Sheets ได้แล้ว")
+                        const { data, error } = await supabase.from('job_records').select('id').limit(1)
+                        if (!error) {
+                          alert("🟢 เชื่อมต่อสำเร็จ! สามารถดึงประวัติจาก Supabase ได้แล้ว")
                         } else {
-                          alert(`❌ เชื่อมต่อล้มเหลว: HTTP ${res.status}`)
+                          alert(`❌ เชื่อมต่อล้มเหลว: ${error.message}`)
                         }
                       } catch (err) {
                         alert(`❌ เชื่อมต่อล้มเหลว: ${err.message}`)
@@ -4842,7 +4833,7 @@ function SettingsPanel() {
                     }}
                     className="mt-1 py-1.5 px-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-650 rounded-lg text-[10px] font-bold text-white text-center transition-colors border border-slate-700 cursor-pointer"
                   >
-                    ทดสอบการดึงข้อมูล Google Sheets
+                    ทดสอบการดึงข้อมูล Supabase
                   </button>
                 )}
               </div>
@@ -4899,38 +4890,46 @@ function LoginScreen({ onLoginSuccess }) {
     setLoading(true)
 
     try {
-      const gasUrl = import.meta.env.VITE_GAS_URL
-      if (!gasUrl) {
-        throw new Error('ระบบยังไม่ได้ตั้งค่า VITE_GAS_URL กรุณาตรวจสอบตัวแปรสภาพแวดล้อม')
+      if (!supabase) {
+        throw new Error('ระบบยังไม่ได้ตั้งค่า VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY')
       }
 
-      const response = await fetch(gasUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain'
-        },
-        body: JSON.stringify({
-          action: 'login',
-          username: username.trim(),
-          password: password.trim()
-        })
+      // Format username as email if needed since Supabase Auth requires an email format
+      let loginEmail = username.trim()
+      if (!loginEmail.includes('@')) {
+        loginEmail = `${loginEmail}@airbuddy.local`
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: password.trim(),
       })
 
-      if (!response.ok) {
-        throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้')
+      if (authError) {
+        throw new Error(authError.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
       }
 
-      const resData = await response.json()
-      if (resData.status === 'success' && resData.user) {
-        const normalizedUser = {
-          ...resData.user,
-          phone: formatPhoneOrPromptPay(resData.user.phone),
-          promptpay_id: formatPhoneOrPromptPay(resData.user.promptpay_id)
-        }
-        onLoginSuccess(normalizedUser)
-      } else {
-        setError(resData.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
+      // Fetch user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single()
+
+      if (profileError) {
+        console.warn('Could not fetch user profile details:', profileError)
       }
+
+      const userObject = {
+        user_id: authData.user.id,
+        username: username.trim(),
+        name: profile?.name || username.trim(),
+        phone: formatPhoneOrPromptPay(profile?.phone || ''),
+        promptpay_id: formatPhoneOrPromptPay(profile?.promptpay_id || ''),
+        role: profile?.role || 'technician'
+      }
+      
+      onLoginSuccess(userObject)
     } catch (err) {
       console.error('Login error:', err)
       setError(err.message || 'เกิดข้อผิดพลาดในการล็อกอิน โปรดตรวจสอบอินเทอร์เน็ต')
@@ -5420,7 +5419,12 @@ function MainAppContent() {
   }, [isOnline])
 
   if (!user) {
-    return <LoginScreen onLoginSuccess={setUser} />
+    return <LoginScreen onLoginSuccess={(loggedInUser) => {
+      setUser(loggedInUser)
+      if (loggedInUser.promptpay_id) {
+        setPromptPayId(loggedInUser.promptpay_id)
+      }
+    }} />
   }
 
   // Dynamic tabs configuration based on role
