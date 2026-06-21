@@ -770,8 +770,15 @@ export function AppProvider({ children }) {
 
   useEffect(() => { localStorage.setItem('abp_shop_name', shopName) }, [shopName])
   useEffect(() => { localStorage.setItem('abp_shop_address', shopAddress) }, [shopAddress])
+  const isPromptPayMounted = useRef(false)
   useEffect(() => { 
     localStorage.setItem('abp_promptpay_id', promptPayId) 
+    
+    if (!isPromptPayMounted.current) {
+      isPromptPayMounted.current = true
+      return
+    }
+
     if (user && user.user_id && supabase) {
       supabase.from('profiles').update({ promptpay_id: promptPayId }).eq('id', user.user_id).then(({error}) => {
         if (error) console.error('Failed to update promptpay_id in Supabase', error)
