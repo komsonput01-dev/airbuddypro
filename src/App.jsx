@@ -13,6 +13,7 @@ import {
   BarChart2
 } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { 
   CalculatorIcon as CalcOutline, 
   WrenchScrewdriverIcon as WrenchOutline, 
@@ -5098,6 +5099,24 @@ function AdminDashboardPanel() {
 
   const uniqueBrands = Array.from(new Set(jobs.map(j => j.brand).filter(Boolean)))
 
+  // Compute daily revenue for the chart
+  const dailyRevenueMap = {}
+  jobs.forEach(j => {
+    if (!j.created_at) return
+    const dateStr = new Date(j.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+    const labor = parseFloat(j.laborFee) || 0
+    const material = parseFloat(j.materialFee) || 0
+    const discount = parseFloat(j.discount) || 0
+    const net = Math.max(0, labor + material - discount)
+
+    if (!dailyRevenueMap[dateStr]) {
+      dailyRevenueMap[dateStr] = { date: dateStr, revenue: 0, sortDate: new Date(j.created_at).getTime() }
+    }
+    dailyRevenueMap[dateStr].revenue += net
+  })
+  
+  const dailyRevenueData = Object.values(dailyRevenueMap).sort((a, b) => a.sortDate - b.sortDate)
+
   // Apply filters
   const filteredJobs = jobs.filter(j => {
     const searchText = search.toLowerCase()
@@ -5185,6 +5204,43 @@ function AdminDashboardPanel() {
             {loading ? <span className="text-xl text-slate-500">กำลังโหลด...</span> : `${activeTechCount} คน`}
           </h3>
           <p className="text-[10px] text-slate-550 font-semibold mt-2">จำนวนบัญชีผู้ใช้งานที่ส่งข้อมูลบันทึกประวัติ</p>
+        </div>
+      </div>
+
+      {/* Revenue Chart */}
+      <div className="card p-5 bg-slate-900/40 border border-slate-800 space-y-4">
+        <div>
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            📈 กราฟสรุปยอดรายรับสุทธิ (Daily Revenue Trend)
+          </h3>
+          <p className="text-xs text-slate-400 font-semibold mt-0.5">ยอดรายรับรวมของทุกวันเรียงตามลำดับเวลา</p>
+        </div>
+        <div className="w-full h-72">
+          {loading ? (
+            <div className="w-full h-full shimmer rounded-xl" />
+          ) : dailyRevenueData.length === 0 ? (
+            <div className="w-full h-full flex items-center justify-center text-sm text-slate-500">ไม่มีข้อมูลรายรับ</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={dailyRevenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#34d399" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#34d399" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `฿${val.toLocaleString()}`} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', color: '#f1f5f9' }}
+                  itemStyle={{ color: '#34d399', fontWeight: 'bold' }}
+                  formatter={(value) => [`${value.toLocaleString()} บาท`, 'รายรับสุทธิ']}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="#34d399" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
