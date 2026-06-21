@@ -1024,66 +1024,67 @@ async function fetchAllJobs(user) {
   
   let onlineJobs = []
 
-  if (supabase) {
-    try {
-      let query = supabase.from('job_records').select('*')
-      // If not admin, only fetch own jobs
-      if (user && user.role !== 'admin' && user.user_id) {
-        query = query.eq('technician_id', user.user_id)
-      }
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(100)
+    if (supabase) {
+      try {
+        let query = supabase.from('job_records').select('*, profiles(name)')
+        // If not admin, only fetch own jobs
+        if (user && user.role !== 'admin' && user.user_id) {
+          query = query.eq('technician_id', user.user_id)
+        }
+        const { data, error } = await query
+          .order('created_at', { ascending: false })
+          .limit(100)
+          
+        if (error) throw error
         
-      if (error) throw error
-      
-      if (data) {
-        onlineJobs = data.map(job => {
-          let extra = {}
-          if (job.repair_details) {
-            try {
-              extra = JSON.parse(job.repair_details)
-            } catch (e) {
-              console.warn('Failed to parse repair_details', e)
+        if (data) {
+          onlineJobs = data.map(job => {
+            let extra = {}
+            if (job.repair_details) {
+              try {
+                extra = JSON.parse(job.repair_details)
+              } catch (e) {
+                console.warn('Failed to parse repair_details', e)
+              }
             }
-          }
-          
-          let brand = ''
-          let model = ''
-          let serialNo = ''
-          
-          if (job.ac_model) {
-            const parts = job.ac_model.split(' (SN:')
-            if (parts.length > 1) {
-              serialNo = parts[1].replace(')', '')
-              const bm = parts[0].trim().split(' ')
-              brand = bm[0] || ''
-              model = bm.slice(1).join(' ')
-            } else {
-              const bm = job.ac_model.trim().split(' ')
-              brand = bm[0] || ''
-              model = bm.slice(1).join(' ')
+            
+            let brand = ''
+            let model = ''
+            let serialNo = ''
+            
+            if (job.ac_model) {
+              const parts = job.ac_model.split(' (SN:')
+              if (parts.length > 1) {
+                serialNo = parts[1].replace(')', '')
+                const bm = parts[0].trim().split(' ')
+                brand = bm[0] || ''
+                model = bm.slice(1).join(' ')
+              } else {
+                const bm = job.ac_model.trim().split(' ')
+                brand = bm[0] || ''
+                model = bm.slice(1).join(' ')
+              }
             }
-          }
-
-          return {
-            id: job.id,
-            created_at: job.date || job.created_at,
-            customer: job.customer_name,
-            phone: job.customer_phone,
-            location: job.customer_address,
-            notes: job.symptoms,
-            brand: brand,
-            model: model,
-            serialNo: serialNo,
-            laborFee: job.cost,
-            materialFee: 0,
-            discount: 0,
-            tech_id: job.technician_id,
-            ...extra
-          }
-        })
-      }
+  
+            return {
+              id: job.id,
+              created_at: job.date || job.created_at,
+              customer: job.customer_name,
+              phone: job.customer_phone,
+              location: job.customer_address,
+              notes: job.symptoms,
+              brand: brand,
+              model: model,
+              serialNo: serialNo,
+              laborFee: job.cost,
+              materialFee: 0,
+              discount: 0,
+              tech_id: job.technician_id,
+              tech_name: job.profiles?.name || 'ช่างไม่ระบุชื่อ',
+              ...extra
+            }
+          })
+        }
     } catch (err) {
       console.error('Failed to fetch jobs from Supabase:', err)
     }
