@@ -5493,14 +5493,14 @@ function MainAppContent() {
                   active
                     ? appTheme === 'light'
                       ? 'bg-blue-600/10 border-blue-500/30 text-blue-600 shadow-inner'
-                      : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-inner'
+                      : 'bg-yellow-400/10 border-yellow-400/30 text-yellow-400 shadow-inner'
                     : appTheme === 'light'
                       ? 'bg-transparent border-transparent text-slate-655 hover:bg-slate-100 hover:text-slate-900'
                       : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
                 }`}
               >
                 <Icon className={`w-5 h-5 ${active
-                  ? appTheme === 'light' ? 'text-blue-600' : 'text-indigo-400'
+                  ? appTheme === 'light' ? 'text-blue-600' : 'text-yellow-400'
                   : appTheme === 'light' ? 'text-slate-400' : 'text-slate-500'
                 }`} />
                 <span className="text-base">{label}</span>
@@ -5618,17 +5618,17 @@ function MainAppContent() {
                 >
                   {/* Icon container with bounce animation */}
                   <div className={`transition-all duration-300 transform active:scale-90 hover:scale-110 ${
-                    active ? 'scale-110 text-indigo-650 dark:text-indigo-400 -translate-y-1' : 'text-slate-400 dark:text-slate-500 hover:text-slate-655 dark:hover:text-slate-400'
+                    active ? 'scale-110 text-indigo-650 dark:text-yellow-400 -translate-y-1' : 'text-slate-400 dark:text-slate-500 hover:text-slate-655 dark:hover:text-slate-400'
                   }`}>
                     <Icon className="w-6 h-6 transition-transform duration-350 ease-spring" />
                   </div>
                   {/* Dot/Indicator below active icon */}
                   {active && (
-                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-pulse" />
+                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-yellow-400 animate-pulse" />
                   )}
                   {/* Label */}
                   <span className={`text-[10px] mt-1 font-bold tracking-wide transition-all duration-200 ${
-                    active ? 'text-indigo-600 dark:text-indigo-400 font-extrabold scale-105' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-655'
+                    active ? 'text-indigo-600 dark:text-yellow-400 font-extrabold scale-105' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-655'
                   }`}>
                     {label}
                   </span>
@@ -5686,14 +5686,14 @@ function MainAppContent() {
                         active
                           ? appTheme === 'light'
                             ? 'bg-blue-600/10 border-blue-500/30 text-blue-600 shadow-inner'
-                            : 'bg-sky-500/10 border-sky-500/30 text-sky-400 shadow-inner'
+                            : 'bg-yellow-400/10 border-yellow-400/30 text-yellow-400 shadow-inner'
                           : appTheme === 'light'
                             ? 'bg-transparent border-transparent text-slate-655 hover:bg-slate-100 hover:text-slate-900'
                             : 'bg-transparent border-transparent text-slate-450 hover:bg-slate-900 hover:text-slate-250'
                       }`}
                     >
                       <Icon className={`w-5 h-5 ${active
-                        ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
+                        ? appTheme === 'light' ? 'text-blue-600' : 'text-yellow-400'
                         : appTheme === 'light' ? 'text-slate-450' : 'text-slate-500'
                       }`} />
                       <span className="text-base">{label}</span>
