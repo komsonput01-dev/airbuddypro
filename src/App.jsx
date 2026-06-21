@@ -7,7 +7,8 @@ import {
   AlertCircle, Search, ChevronDown, ChevronUp, RotateCcw,
   AlertTriangle, Plus, Save, Copy, Check, MessageCircle,
   Wifi, WifiOff, Trash2, FileText, ExternalLink, Clock, X,
-  Eye, Star, Download, ImagePlus, Brain, Sparkles, Send, MapPin
+  Eye, Star, Download, ImagePlus, Brain, Sparkles, Send, MapPin,
+  BarChart2
 } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { 
@@ -26,6 +27,20 @@ import {
   BookOpenIcon as LibrarySolid,
   Cog6ToothIcon as SettingsSolid
 } from '@heroicons/react/24/solid'
+// ─── HELPER FUNCTIONS ────────────────────────────────────────────────────────
+export function formatPhoneOrPromptPay(val) {
+  if (val === undefined || val === null) return '';
+  let str = val.toString().trim();
+  str = str.replace(/^'/, '');
+  let digits = str.replace(/\D/g, '');
+  if (digits.length === 9) {
+    return '0' + digits;
+  }
+  if (digits.length === 12) {
+    return '0' + digits;
+  }
+  return str;
+}
 
 
 // ─── SUPABASE INITIALIZATION ────────────────────────────────────────────────
@@ -726,7 +741,32 @@ export function AppProvider({ children }) {
 
   const [shopName, setShopName] = useState(() => localStorage.getItem('abp_shop_name') || '')
   const [shopAddress, setShopAddress] = useState(() => localStorage.getItem('abp_shop_address') || '')
-  const [promptPayId, setPromptPayId] = useState(() => localStorage.getItem('abp_promptpay_id') || '')
+  const [promptPayId, setPromptPayId] = useState(() => formatPhoneOrPromptPay(localStorage.getItem('abp_promptpay_id') || ''))
+
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('abp_user')
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser)
+        return {
+          ...parsed,
+          phone: formatPhoneOrPromptPay(parsed.phone),
+          promptpay_id: formatPhoneOrPromptPay(parsed.promptpay_id)
+        }
+      }
+      return null
+    } catch {
+      return null
+    }
+  })
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('abp_user', JSON.stringify(user))
+    } else {
+      localStorage.removeItem('abp_user')
+    }
+  }, [user])
 
   useEffect(() => { localStorage.setItem('abp_shop_name', shopName) }, [shopName])
   useEffect(() => { localStorage.setItem('abp_shop_address', shopAddress) }, [shopAddress])
@@ -780,7 +820,8 @@ export function AppProvider({ children }) {
       isOnline, setIsOnline,
       shopName, setShopName,
       shopAddress, setShopAddress,
-      promptPayId, setPromptPayId
+      promptPayId, setPromptPayId,
+      user, setUser
     }}>
       {children}
     </AppContext.Provider>
@@ -892,18 +933,22 @@ async function syncQueue(onProgress) {
 }
 
 async function saveJob(record, isOnline) {
+  const normalizedRecord = {
+    ...record,
+    phone: formatPhoneOrPromptPay(record.phone)
+  }
   const gasUrl = import.meta.env.VITE_GAS_URL
   const hasGas = !!gasUrl
   const hasSupabase = !!(supabaseConfigured && supabase)
 
   if (!isOnline) {
-    enqueue(record)
+    enqueue(normalizedRecord)
     return { saved: 'offline' }
   }
 
   // If no database configured, fallback to offline local saving
   if (!hasGas && !hasSupabase) {
-    enqueue(record)
+    enqueue(normalizedRecord)
     return { saved: 'offline' }
   }
 
@@ -919,7 +964,7 @@ async function saveJob(record, isOnline) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(record)
+        body: JSON.stringify(normalizedRecord)
       })
       if (response.ok) {
         const json = await response.json()
@@ -934,7 +979,7 @@ async function saveJob(record, isOnline) {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(record)
+          body: JSON.stringify(normalizedRecord)
         })
       }
       gasSaved = true
@@ -947,7 +992,7 @@ async function saveJob(record, isOnline) {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(record)
+          body: JSON.stringify(normalizedRecord)
         })
         gasSaved = true
       } catch (err2) {
@@ -959,7 +1004,7 @@ async function saveJob(record, isOnline) {
   // 2. Save to Supabase (with Upsert logic)
   if (hasSupabase) {
     try {
-      const { lat, lon, ...supabaseRecord } = record
+      const { lat, lon, ...supabaseRecord } = normalizedRecord
       
       const todayStart = new Date()
       todayStart.setHours(0, 0, 0, 0)
@@ -970,13 +1015,13 @@ async function saveJob(record, isOnline) {
       const { data: candidates, error: searchError } = await supabase
         .from('jobs')
         .select('id, customer, phone')
-        .eq('serialNo', record.serialNo)
+        .eq('serialNo', normalizedRecord.serialNo)
         .gte('created_at', todayStart.toISOString())
         .lte('created_at', todayEnd.toISOString())
 
       const match = !searchError && candidates && candidates.find(c => 
-        (c.customer && c.customer.toString().trim() === record.customer.toString().trim()) || 
-        (c.phone && c.phone.toString().trim() === record.phone.toString().trim())
+        (c.customer && c.customer.toString().trim() === normalizedRecord.customer.toString().trim()) || 
+        (c.phone && c.phone.toString().trim() === normalizedRecord.phone.toString().trim())
       )
 
       if (match) {
@@ -1012,12 +1057,12 @@ async function saveJob(record, isOnline) {
   if (isGasOk && isSupabaseOk) {
     return { saved: 'online', action }
   } else {
-    enqueue(record)
+    enqueue(normalizedRecord)
     return { saved: 'offline' }
   }
 }
 
-async function fetchAllJobs() {
+async function fetchAllJobs(user) {
   const localJobs = JSON.parse(localStorage.getItem('abp_local_jobs') || '[]')
   const gasUrl = import.meta.env.VITE_GAS_URL
   const hasGas = !!gasUrl
@@ -1027,7 +1072,12 @@ async function fetchAllJobs() {
 
   if (hasGas) {
     try {
-      const response = await fetch(gasUrl)
+      const url = new URL(gasUrl)
+      if (user) {
+        url.searchParams.append('techId', user.user_id || '')
+        url.searchParams.append('role', user.role || '')
+      }
+      const response = await fetch(url.toString())
       if (response.ok) {
         const data = await response.json()
         if (Array.isArray(data)) {
@@ -1039,11 +1089,13 @@ async function fetchAllJobs() {
     }
   } else if (hasSupabase) {
     try {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
+      let query = supabase.from('jobs').select('*')
+      if (user && user.role !== 'admin' && user.user_id) {
+        query = query.eq('tech_id', user.user_id)
+      }
+      const { data, error } = await query
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(100)
       if (error) throw error
       onlineJobs = data || []
     } catch (err) {
@@ -1051,11 +1103,17 @@ async function fetchAllJobs() {
     }
   }
 
-  return [...onlineJobs, ...localJobs]
+  const formattedOnline = onlineJobs.map(j => ({ ...j, phone: formatPhoneOrPromptPay(j.phone) }))
+  const formattedLocal = localJobs.map(j => ({ ...j, phone: formatPhoneOrPromptPay(j.phone) }))
+  return [...formattedOnline, ...formattedLocal]
 }
 
 function saveJobLocally(record) {
   try {
+    const normalizedRecord = {
+      ...record,
+      phone: formatPhoneOrPromptPay(record.phone)
+    }
     const jobs = JSON.parse(localStorage.getItem('abp_local_jobs') || '[]')
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
@@ -1063,19 +1121,19 @@ function saveJobLocally(record) {
     const existingIndex = jobs.findIndex(j => {
       const jobDate = new Date(j.created_at)
       const isToday = jobDate >= todayStart
-      const matchesSerial = j.serialNo && j.serialNo.toString().trim() === record.serialNo.toString().trim()
+      const matchesSerial = j.serialNo && j.serialNo.toString().trim() === normalizedRecord.serialNo.toString().trim()
       const matchesCustomerOrPhone = 
-        (j.customer && j.customer.toString().trim() === record.customer.toString().trim()) || 
-        (j.phone && j.phone.toString().trim() === record.phone.toString().trim())
+        (j.customer && j.customer.toString().trim() === normalizedRecord.customer.toString().trim()) || 
+        (j.phone && j.phone.toString().trim() === normalizedRecord.phone.toString().trim())
       return isToday && matchesSerial && matchesCustomerOrPhone
     })
 
     let action = 'inserted'
     if (existingIndex > -1) {
-      jobs[existingIndex] = { ...jobs[existingIndex], ...record, updated_at: new Date().toISOString() }
+      jobs[existingIndex] = { ...jobs[existingIndex], ...normalizedRecord, updated_at: new Date().toISOString() }
       action = 'updated'
     } else {
-      const newJob = { ...record, id: crypto.randomUUID(), created_at: new Date().toISOString() }
+      const newJob = { ...normalizedRecord, id: crypto.randomUUID(), created_at: new Date().toISOString() }
       jobs.unshift(newJob)
     }
     localStorage.setItem('abp_local_jobs', JSON.stringify(jobs.slice(0, 100)))
@@ -1142,7 +1200,8 @@ function crc16ccitt(data) {
 }
 
 function generatePromptPayQR(target, amount) {
-  let sanitized = (target || '').toString().replace(/\D/g, '');
+  const normalizedTarget = formatPhoneOrPromptPay(target);
+  let sanitized = (normalizedTarget || '').toString().replace(/\D/g, '');
   if (!sanitized) return '';
 
   let targetType = '';
@@ -2536,7 +2595,8 @@ const formatThaiAddress = (inputData) => {
 function JobLoggerPanel() {
   const { 
     unitSystem, isOnline, appTheme,
-    shopName, shopAddress, promptPayId 
+    shopName, shopAddress, promptPayId,
+    user
   } = useApp()
   const { sharedBTU, scannedJobData, setScannedJobData } = useCalculator()
 
@@ -2562,13 +2622,14 @@ function JobLoggerPanel() {
 
   // Generate PromptPay QR Code payload & image URL
   const handleOpenPayment = async () => {
-    if (!promptPayId) {
-      alert('⚠️ โปรดตั้งค่า "หมายเลขพร้อมเพย์" ในแท็บตั้งค่าระบบก่อนรับชำระเงิน!')
+    const activePromptPayId = formatPhoneOrPromptPay(user?.promptpay_id || promptPayId)
+    if (!activePromptPayId) {
+      alert('⚠️ โปรดตั้งค่า "หมายเลขพร้อมเพย์" ในแท็บตั้งค่าระบบหรือล็อกอินช่างก่อนรับชำระเงิน!')
       return
     }
     
     try {
-      const payload = generatePromptPayQR(promptPayId, netAmount)
+      const payload = generatePromptPayQR(activePromptPayId, netAmount)
       const dataUrl = await QRCode.toDataURL(payload, {
         width: 300,
         margin: 2,
@@ -2601,10 +2662,14 @@ function JobLoggerPanel() {
       doc.addFileToVFS('Sarabun-Bold.ttf', bold)
       doc.addFont('Sarabun-Bold.ttf', 'Sarabun', 'bold')
 
+      const activePromptPayId = formatPhoneOrPromptPay(user?.promptpay_id || promptPayId)
+      const activeName = user?.name || shopName || 'ช่างแอร์ทั่วไป'
+      const activePhone = formatPhoneOrPromptPay(user?.phone || (shopAddress && shopAddress.match(/\d{9,10}/) ? shopAddress.match(/\d{9,10}/)[0] : '') || '-')
+
       doc.setProperties({
         title: `Invoice-${form.customer || 'Customer'}`,
         subject: 'Air Buddy Pro Service Invoice',
-        author: shopName || 'Air Buddy Pro Technician'
+        author: activeName
       })
 
       const margin = 15
@@ -2648,9 +2713,12 @@ function JobLoggerPanel() {
       doc.setFont('Sarabun', 'normal')
       doc.setFontSize(10)
       doc.setTextColor(71, 85, 105)
-      doc.text(shopName || 'ช่างแอร์ทั่วไป (ไม่ได้ตั้งค่าชื่อร้าน)', margin, y + 5.5)
+      doc.text(activeName, margin, y + 5.5)
       
-      const shopAddrLines = doc.splitTextToSize(shopAddress || 'เบอร์ติดต่อ: - (ไม่ได้ตั้งค่าที่อยู่ร้าน)', 85)
+      const providerAddr = user?.name 
+        ? `โทร. ${activePhone}${shopAddress ? ` / ${shopAddress}` : ''}`
+        : shopAddress || 'เบอร์ติดต่อ: - (ไม่ได้ตั้งค่าที่อยู่ร้าน)'
+      const shopAddrLines = doc.splitTextToSize(providerAddr, 85)
       doc.text(shopAddrLines, margin, y + 11)
 
       // Right: Customer info
@@ -2807,8 +2875,8 @@ function JobLoggerPanel() {
       }
 
       // PromptPay QR Code drawing
-      if (promptPayId && netAmount > 0) {
-        const payload = generatePromptPayQR(promptPayId, netAmount)
+      if (activePromptPayId && netAmount > 0) {
+        const payload = generatePromptPayQR(activePromptPayId, netAmount)
         const qrUrl = await QRCode.toDataURL(payload, { margin: 1 })
         doc.addImage(qrUrl, 'PNG', margin + 145, y - 2, 30, 30)
         doc.setFont('Sarabun', 'bold')
@@ -2826,7 +2894,7 @@ function JobLoggerPanel() {
       // Tech sign
       doc.line(margin, y, margin + 50, y)
       doc.text('ลงชื่อ................................................ผู้ให้บริการ', margin, y + 5)
-      doc.text(`( ${shopName || 'ผู้ให้บริการ'} )`, margin + 4, y + 10)
+      doc.text(`( ${activeName} )`, margin + 4, y + 10)
 
       // Customer sign
       doc.line(margin + 90, y, margin + 140, y)
@@ -2979,7 +3047,13 @@ function JobLoggerPanel() {
       return
     }
     setSaving(true)
-    const record = { ...form, btu: sharedBTU || null, unit: unitSystem }
+    const record = { 
+      ...form, 
+      btu: sharedBTU || null, 
+      unit: unitSystem,
+      tech_id: user?.user_id || "",
+      tech_name: user?.name || ""
+    }
     let result
     if (!isOnline) {
       const action = saveJobLocally(record)
@@ -3050,10 +3124,10 @@ function JobLoggerPanel() {
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true)
-    const all = await fetchAllJobs()
+    const all = await fetchAllJobs(user)
     setJobs(all)
     setLoadingHistory(false)
-  }, [])
+  }, [user])
 
   useEffect(() => { loadHistory() }, [loadHistory, historyRefresh])
 
@@ -3151,6 +3225,7 @@ function JobLoggerPanel() {
                     placeholder="เช่น 0812345678"
                     value={form.phone || ''}
                     onChange={e => set('phone', e.target.value)}
+                    onBlur={e => set('phone', formatPhoneOrPromptPay(e.target.value))}
                     className="input-field font-semibold"
                   />
                 </div>
@@ -4478,7 +4553,8 @@ function SettingsPanel() {
     appTheme, setAppTheme,
     shopName, setShopName,
     shopAddress, setShopAddress,
-    promptPayId, setPromptPayId 
+    promptPayId, setPromptPayId,
+    user, setUser
   } = useApp()
 
   const fontOptions = [
@@ -4499,6 +4575,51 @@ function SettingsPanel() {
           <p className="text-sm text-slate-400">ปรับเปลี่ยนการแสดงผลและโหมดประหยัดพลังงาน</p>
         </div>
       </div>
+
+      {/* Account Settings Card */}
+      {user && (
+        <div className="card p-5 space-y-4 bg-slate-900/40 border border-slate-800">
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm text-white">
+                👤
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">บัญชีผู้ใช้งานปัจจุบัน</p>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">ช่างปฏิบัติงานในระบบ</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUser(null)}
+              className="py-1.5 px-3.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold active:scale-95 transition-all text-xs cursor-pointer"
+            >
+              ออกจากระบบ
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-semibold text-slate-350">
+            <div className="bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">ชื่อช่าง</p>
+              <p className="text-white text-sm font-black">{user.name}</p>
+            </div>
+            <div className="bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">ประเภทบัญชี</p>
+              <p className="text-white text-sm font-black">
+                {user.role === 'admin' ? '🛡️ แอดมิน (เจ้าของร้าน)' : '🛠️ ช่างเทคนิค'}
+              </p>
+            </div>
+            <div className="bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">เบอร์ติดต่อ</p>
+              <p className="text-white text-sm font-black mono">{user.phone || '-'}</p>
+            </div>
+            <div className="bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">พร้อมเพย์ ID</p>
+              <p className="text-white text-sm font-black mono">{user.promptpay_id || '-'}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Theme Switcher Card ─────────────────────────────────────────── */}
       <div className="card p-5">
@@ -4656,6 +4777,7 @@ function SettingsPanel() {
                 placeholder="เบอร์มือถือ 10 หลัก หรือ เลขประจำตัวประชาชน 13 หลัก"
                 value={promptPayId}
                 onChange={e => setPromptPayId(e.target.value)}
+                onBlur={e => setPromptPayId(formatPhoneOrPromptPay(e.target.value))}
                 className="input-field text-sm font-semibold mono"
               />
               <p className="text-[10px] text-slate-500 font-bold mt-1 leading-tight">
@@ -4760,13 +4882,535 @@ function SettingsPanel() {
   )
 }
 
+// ─── LOGIN SCREEN COMPONENT ──────────────────────────────────────────────────
+function LoginScreen({ onLoginSuccess }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    if (!username.trim() || !password.trim()) {
+      setError('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน')
+      return
+    }
+    setError('')
+    setLoading(true)
+
+    try {
+      const gasUrl = import.meta.env.VITE_GAS_URL
+      if (!gasUrl) {
+        throw new Error('ระบบยังไม่ได้ตั้งค่า VITE_GAS_URL กรุณาตรวจสอบตัวแปรสภาพแวดล้อม')
+      }
+
+      const response = await fetch(gasUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'login',
+          username: username.trim(),
+          password: password.trim()
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้')
+      }
+
+      const resData = await response.json()
+      if (resData.status === 'success' && resData.user) {
+        const normalizedUser = {
+          ...resData.user,
+          phone: formatPhoneOrPromptPay(resData.user.phone),
+          promptpay_id: formatPhoneOrPromptPay(resData.user.promptpay_id)
+        }
+        onLoginSuccess(normalizedUser)
+      } else {
+        setError(resData.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
+      }
+    } catch (err) {
+      console.error('Login error:', err)
+      setError(err.message || 'เกิดข้อผิดพลาดในการล็อกอิน โปรดตรวจสอบอินเทอร์เน็ต')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 text-slate-100 p-4 relative overflow-hidden">
+      {/* Background gradients for premium glassmorphism vibe */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="w-full max-w-md bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl space-y-6 relative z-10">
+        <div className="text-center space-y-2">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Wind className="text-white" size={28} />
+          </div>
+          <h2 className="text-2xl font-black gradient-text tracking-tight mt-4">เข้าสู่ระบบ Air Buddy Pro</h2>
+          <p className="text-sm text-slate-400">ระบบบันทึกงานช่างแอร์มืออาชีพ</p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2.5 p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-sm text-red-400">
+            <AlertCircle size={18} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="username">ชื่อผู้ใช้งาน (Username)</label>
+            <input
+              id="username"
+              type="text"
+              required
+              className="w-full px-4 py-3 rounded-xl bg-slate-955 border border-slate-850 focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 text-white placeholder-slate-600 outline-none transition-all"
+              placeholder="กรอกชื่อผู้ใช้..."
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="password">รหัสผ่าน (Password)</label>
+            <input
+              id="password"
+              type="password"
+              required
+              className="w-full px-4 py-3 rounded-xl bg-slate-955 border border-slate-850 focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 text-white placeholder-slate-600 outline-none transition-all"
+              placeholder="กรอกรหัสผ่าน..."
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 px-5 bg-gradient-to-r from-sky-400 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 active:scale-[0.98] transition-all rounded-xl font-bold text-white shadow-lg shadow-indigo-500/10 flex items-center justify-center gap-2 tap-target disabled:opacity-50 disabled:pointer-events-none mt-2 cursor-pointer"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                กำลังเข้าสู่ระบบ...
+              </span>
+            ) : (
+              'เข้าสู่ระบบ'
+            )}
+          </button>
+        </form>
+
+        <div className="pt-2 text-center">
+          <p className="text-xs text-slate-500">Air Buddy Pro v1.2.0 © 2026</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ADMIN DASHBOARD PANEL ───────────────────────────────────────────────────
+function AdminDashboardPanel() {
+  const { isOnline, appTheme, user } = useApp()
+  const [jobs, setJobs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [expandedJobId, setExpandedJobId] = useState(null)
+
+  // Filters
+  const [search, setSearch] = useState('')
+  const [selectedTech, setSelectedTech] = useState('all')
+  const [selectedBrand, setSelectedBrand] = useState('all')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  // Fetch all jobs for admin
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchAllJobs(user)
+        setJobs(data || [])
+      } catch (err) {
+        console.error('Failed to load admin dashboard data:', err)
+        setError('ไม่สามารถดึงข้อมูลประวัติงานรวมได้')
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (user && user.role === 'admin') {
+      fetchAdminData()
+    }
+  }, [user, refreshTrigger])
+
+  // Compute stats
+  const totalJobs = jobs.length
+  
+  const totalRevenue = jobs.reduce((sum, j) => {
+    const labor = parseFloat(j.laborFee) || 0
+    const material = parseFloat(j.materialFee) || 0
+    const discount = parseFloat(j.discount) || 0
+    return sum + Math.max(0, labor + material - discount)
+  }, 0)
+
+  // Unique technician count and leaderboard calculation
+  const techLeaderboardMap = {}
+  jobs.forEach(j => {
+    const techId = j.tech_id || 'unknown'
+    const techName = j.tech_name || 'ช่างไม่ระบุชื่อ'
+    const labor = parseFloat(j.laborFee) || 0
+    const material = parseFloat(j.materialFee) || 0
+    const discount = parseFloat(j.discount) || 0
+    const net = Math.max(0, labor + material - discount)
+
+    if (!techLeaderboardMap[techId]) {
+      techLeaderboardMap[techId] = {
+        id: techId,
+        name: techName,
+        jobCount: 0,
+        revenue: 0
+      }
+    }
+    techLeaderboardMap[techId].jobCount += 1
+    techLeaderboardMap[techId].revenue += net
+  })
+
+  const leaderboard = Object.values(techLeaderboardMap).sort((a, b) => b.revenue - a.revenue)
+  const activeTechCount = leaderboard.length
+
+  // Filter lists
+  const uniqueTechs = Array.from(new Set(jobs.map(j => JSON.stringify({ id: j.tech_id || 'unknown', name: j.tech_name || 'ช่างไม่ระบุชื่อ' }))))
+    .map(str => JSON.parse(str))
+
+  const uniqueBrands = Array.from(new Set(jobs.map(j => j.brand).filter(Boolean)))
+
+  // Apply filters
+  const filteredJobs = jobs.filter(j => {
+    const searchText = search.toLowerCase()
+    const matchesSearch = !search || 
+      (j.customer || '').toLowerCase().includes(searchText) ||
+      (j.model || '').toLowerCase().includes(searchText) ||
+      (j.serialNo || '').toLowerCase().includes(searchText) ||
+      (j.tech_name || '').toLowerCase().includes(searchText)
+
+    const matchesTech = selectedTech === 'all' || (j.tech_id || 'unknown') === selectedTech
+    const matchesBrand = selectedBrand === 'all' || j.brand === selectedBrand
+
+    let matchesDate = true
+    if (j.created_at) {
+      const jobDate = new Date(j.created_at)
+      jobDate.setHours(0, 0, 0, 0)
+      
+      if (startDate) {
+        const start = new Date(startDate)
+        start.setHours(0, 0, 0, 0)
+        if (jobDate < start) matchesDate = false
+      }
+      if (endDate) {
+        const end = new Date(endDate)
+        end.setHours(23, 59, 59, 999)
+        if (jobDate > end) matchesDate = false
+      }
+    }
+
+    return matchesSearch && matchesTech && matchesBrand && matchesDate
+  })
+
+  return (
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+            <span className="text-2xl">📊</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-white">แดชบอร์ดแอดมิน (Admin Analytics)</h1>
+            <p className="text-sm text-slate-400">สรุปยอดรวมผลงาน รายรับ และรายละเอียดของช่างแอร์ทุกคน</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setRefreshTrigger(t => t + 1)}
+          className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-200 font-bold active:scale-95 transition-all text-sm cursor-pointer self-start sm:self-auto"
+        >
+          <RotateCcw size={16} />
+          รีเฟรชข้อมูล
+        </button>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2.5 p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-sm text-red-400">
+          <AlertCircle size={18} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="card p-5 relative overflow-hidden bg-slate-900/40 border border-slate-800">
+          <div className="absolute right-4 top-4 text-3xl opacity-20">💼</div>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">งานสำเร็จทั้งหมด</p>
+          <h3 className="text-3xl font-black text-white mt-1.5 leading-none">
+            {loading ? <span className="text-xl text-slate-500">กำลังโหลด...</span> : totalJobs.toLocaleString()} งาน
+          </h3>
+          <p className="text-[10px] text-slate-505 font-semibold mt-2">ยอดสะสมจากการบันทึกผ่านระบบ</p>
+        </div>
+
+        <div className="card p-5 relative overflow-hidden bg-slate-900/40 border border-slate-800">
+          <div className="absolute right-4 top-4 text-3xl opacity-20">💰</div>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">รายรับสะสมรวม</p>
+          <h3 className="text-3xl font-black text-emerald-400 mt-1.5 leading-none">
+            {loading ? <span className="text-xl text-slate-500">กำลังโหลด...</span> : `${totalRevenue.toLocaleString('th-TH')} บาท`}
+          </h3>
+          <p className="text-[10px] text-slate-550 font-semibold mt-2">คำนวณสุทธิหลังหักส่วนลดทั้งหมด</p>
+        </div>
+
+        <div className="card p-5 relative overflow-hidden bg-slate-900/40 border border-slate-800">
+          <div className="absolute right-4 top-4 text-3xl opacity-20">👥</div>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">ช่างปฏิบัติงานทั้งหมด</p>
+          <h3 className="text-3xl font-black text-indigo-400 mt-1.5 leading-none">
+            {loading ? <span className="text-xl text-slate-500">กำลังโหลด...</span> : `${activeTechCount} คน`}
+          </h3>
+          <p className="text-[10px] text-slate-550 font-semibold mt-2">จำนวนบัญชีผู้ใช้งานที่ส่งข้อมูลบันทึกประวัติ</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="card p-5 lg:col-span-1 bg-slate-900/40 border border-slate-800 space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              🏆 ลีดเดอร์บอร์ดช่างแอร์ (Tech Leaderboard)
+            </h3>
+            <p className="text-xs text-slate-400 font-semibold mt-0.5">จัดอันดับช่างตามยอดรายได้รวมของงานที่ทำสำเร็จ</p>
+          </div>
+
+          <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+            {loading ? (
+              [1, 2, 3].map(i => <div key={i} className="shimmer h-12 rounded-xl" />)
+            ) : leaderboard.length === 0 ? (
+              <p className="text-sm text-slate-505 text-center py-4">ไม่มีข้อมูลการปฏิบัติงาน</p>
+            ) : (
+              leaderboard.map((tech, idx) => (
+                <div key={tech.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-950/40 border border-slate-850">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-7 h-7 rounded-lg font-black text-sm flex items-center justify-center shrink-0 ${
+                      idx === 0 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                      idx === 1 ? 'bg-slate-300/20 text-slate-300 border border-slate-400/30' :
+                      idx === 2 ? 'bg-amber-700/20 text-amber-600 border border-amber-700/30' :
+                      'bg-slate-800 text-slate-400'
+                    }`}>
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white leading-snug">{tech.name}</p>
+                      <p className="text-[10px] text-slate-400 font-semibold">{tech.jobCount} งานสำเร็จ</p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-extrabold text-white mono">
+                    {tech.revenue.toLocaleString('th-TH')} ฿
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="card p-5 lg:col-span-2 bg-slate-900/40 border border-slate-800 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+            <div>
+              <h3 className="text-base font-bold text-white">🗂️ ประวัติบันทึกงานรวม (Master Logs)</h3>
+              <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                ประวัติงานซ่อมแอร์ทั้งหมดจากพนักงานในระบบ (กรองได้ตามผู้ใช้และช่วงวัน)
+              </p>
+            </div>
+            <div className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20 self-start sm:self-auto">
+              พบ {filteredJobs.length} งานจากคัดกรอง
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 bg-slate-950/40 p-4 rounded-xl border border-slate-850">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-505">ค้นหาลูกค้า/ซีเรียล</label>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="พิมพ์ค้นหา..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold focus:border-indigo-500/80 outline-none text-white transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">เลือกช่างแอร์</label>
+              <select
+                value={selectedTech}
+                onChange={e => setSelectedTech(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-white focus:border-indigo-500/80 outline-none transition-colors"
+              >
+                <option value="all">ทั้งหมดทุกคน</option>
+                {uniqueTechs.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">แบรนด์แอร์</label>
+              <select
+                value={selectedBrand}
+                onChange={e => setSelectedBrand(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-white focus:border-indigo-500/80 outline-none transition-colors"
+              >
+                <option value="all">ทุกแบรนด์</option>
+                {uniqueBrands.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">วันที่เริ่มต้น</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-white focus:border-indigo-500/80 outline-none transition-colors"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">วันที่สิ้นสุด</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-white focus:border-indigo-500/80 outline-none transition-colors"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('')
+                  setSelectedTech('all')
+                  setSelectedBrand('all')
+                  setStartDate('')
+                  setEndDate('')
+                }}
+                className="w-full py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-850 active:scale-95 transition-all text-xs font-bold text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                ล้างตัวกรองทั้งหมด
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
+            {loading ? (
+              [1, 2, 3].map(i => <div key={i} className="shimmer h-14 rounded-xl" />)
+            ) : filteredJobs.length === 0 ? (
+              <div className="text-center py-10 text-slate-500 bg-slate-950/20 rounded-xl border border-slate-850">
+                <FileText size={36} className="mx-auto mb-2 opacity-20" />
+                <p className="text-sm font-bold">ไม่พบประวัติงานซ่อมตรงตามตัวกรองที่เลือก</p>
+              </div>
+            ) : (
+              filteredJobs.map((job, idx) => {
+                const expanded = expandedJobId === job.id
+                const labor = parseFloat(job.laborFee) || 0
+                const material = parseFloat(job.materialFee) || 0
+                const discount = parseFloat(job.discount) || 0
+                const net = Math.max(0, labor + material - discount)
+
+                return (
+                  <div key={job.id || idx} className="bg-slate-955/30 border border-slate-850 rounded-xl overflow-hidden hover:border-slate-800 transition-colors">
+                    <button
+                      className="w-full flex items-center justify-between p-4 text-left tap-target"
+                      onClick={() => setExpandedJobId(expanded ? null : job.id)}
+                    >
+                      <div className="flex-1 min-w-0 pr-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-white text-base leading-snug truncate">{job.customer || 'ลูกค้าไม่ระบุชื่อ'}</p>
+                          <span className="text-[10px] bg-slate-800 text-slate-350 px-2 py-0.5 rounded-full font-bold border border-slate-700">
+                            👤 {job.tech_name || 'ช่างทั่วไป'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1 font-semibold">
+                          {job.brand || '-'} {job.model || '-'} · {job.refrigerant || '-'} · {new Date(job.created_at).toLocaleDateString('th-TH')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-extrabold text-white mono">{net.toLocaleString('th-TH')} ฿</p>
+                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">สุทธิ</p>
+                        </div>
+                        {expanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                      </div>
+                    </button>
+
+                    {expanded && (
+                      <div className="border-t border-slate-855 bg-slate-950/50 px-4 py-3.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-semibold">
+                        {[
+                          ['ช่างผู้บันทึก', `${job.tech_name || '-'} (${job.tech_id || '-'})`],
+                          ['เบอร์ลูกค้า', job.phone || '-'],
+                          ['พิกัดตำแหน่ง', job.location || '-'],
+                          ['หมายเลขซีเรียล', job.serialNo || '-'],
+                          [`แรงดันเกจฝั่งต่ำ ก่อน/หลัง`, `${job.lowBefore || '-'} / ${job.lowAfter || '-'} ${job.unit || 'PSI'}`],
+                          [`แรงดันเกจฝั่งสูง ก่อน/หลัง`, `${job.highBefore || '-'} / ${job.highAfter || '-'} ${job.unit || 'PSI'}`],
+                          ['กระแสคอมเพรสเซอร์', job.current ? `${job.current} A` : '-'],
+                          ['ขนาดบีทียูคำนวณ', job.btu ? `${Number(job.btu).toLocaleString()} BTU` : '-'],
+                          ['ค่าบริการ / ค่าแรงช่าง', job.laborFee ? `${Number(job.laborFee).toLocaleString()} ฿` : '-'],
+                          ['ค่าอะไหล่ / น้ำยาแอร์', job.materialFee ? `${Number(job.materialFee).toLocaleString()} ฿` : '-'],
+                          ['ส่วนลดการบริการ', job.discount ? `-${Number(job.discount).toLocaleString()} ฿` : '-'],
+                        ].map(([lbl, val]) => (
+                          <div key={lbl} className="bg-slate-900/40 p-2.5 rounded-xl border border-slate-850/80">
+                            <p className="text-slate-500 uppercase tracking-wide text-[9px] mb-0.5">{lbl}</p>
+                            <p className="text-slate-200 text-sm font-bold break-all leading-tight">{val || '-'}</p>
+                          </div>
+                        ))}
+                        {job.notes && (
+                          <div className="col-span-2 sm:col-span-4 bg-slate-900/40 p-2.5 rounded-xl border border-slate-850/80">
+                            <p className="text-slate-500 uppercase tracking-wide text-[9px] mb-0.5">หมายเหตุหน้างาน</p>
+                            <p className="text-slate-350 text-sm leading-relaxed">{job.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── MAIN APP COMPONENT ──────────────────────────────────────────────────────
 function MainAppContent() {
-  const [activeTab, setActiveTab] = useState(0)
+  const { powerSaving, isOnline, appTheme, user, setUser } = useApp()
+  const [activeTab, setActiveTab] = useState(user?.role === 'admin' ? 6 : 0)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
-  // System context properties
-  const { powerSaving, isOnline, appTheme } = useApp()
+  // Redirect on user role change
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      setActiveTab(6)
+    } else {
+      setActiveTab(0)
+    }
+  }, [user])
 
   // Offline syncing indicator when coming back online
   useEffect(() => {
@@ -4775,11 +5419,38 @@ function MainAppContent() {
     }
   }, [isOnline])
 
+  if (!user) {
+    return <LoginScreen onLoginSuccess={setUser} />
+  }
+
+  // Dynamic tabs configuration based on role
+  const availableTabs = [
+    { id: 0, label: 'คำนวณ', iconOutline: CalcOutline, iconSolid: CalcSolid },
+    { id: 1, label: 'วิเคราะห์อาการ', iconOutline: WrenchOutline, iconSolid: WrenchSolid },
+    { id: 2, label: 'บันทึกงาน', iconOutline: ClipboardOutline, iconSolid: ClipboardSolid },
+    { id: 3, label: 'สแกนเพลท', iconOutline: CameraOutline, iconSolid: CameraSolid },
+    { id: 4, label: 'คลังคู่มือ', iconOutline: LibraryOutline, iconSolid: LibrarySolid },
+    { id: 5, label: 'ตั้งค่าระบบ', iconOutline: SettingsOutline, iconSolid: SettingsSolid },
+  ]
+  if (user.role === 'admin') {
+    availableTabs.push({ id: 6, label: 'แดชบอร์ดแอดมิน', iconOutline: BarChart2, iconSolid: BarChart2 })
+  }
+
+  const mainSidebarTabs = user.role === 'admin'
+    ? [availableTabs.find(t => t.id === 6), ...availableTabs.filter(t => t.id < 4)].filter(Boolean)
+    : availableTabs.filter(t => t.id < 4)
+
+  const mobileBottomTabs = user.role === 'admin'
+    ? [availableTabs.find(t => t.id === 6), ...availableTabs.filter(t => t.id < 3)].filter(Boolean)
+    : availableTabs.filter(t => t.id < 4)
+
+  const drawerTabs = availableTabs.filter(t => t.id === 4 || t.id === 5)
+
   return (
     <div className={`min-h-screen w-full flex ${
       powerSaving ? 'bg-black text-white' :
       appTheme === 'light' ? 'bg-slate-50 text-slate-900' :
-      'bg-slate-950 text-slate-100'
+      'bg-slate-955 text-slate-100'
     } transition-colors duration-200`}>
 
       {/* Sidebar Navigation - Tablet & Desktop */}
@@ -4801,7 +5472,7 @@ function MainAppContent() {
         </div>
 
         <nav className="flex-1 space-y-2">
-          {TABS.slice(0, 4).map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
+          {mainSidebarTabs.map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
             const active = activeTab === id
             const Icon = active ? IconSolid : IconOutline
             return (
@@ -4856,7 +5527,7 @@ function MainAppContent() {
               <Wind className="text-white" size={16} />
             </div>
             <h1 className="font-black text-base md:text-lg text-white tracking-tight">
-              {TABS.find(t => t.id === activeTab)?.label || 'Air Buddy Pro'}
+              {availableTabs.find(t => t.id === activeTab)?.label || 'Air Buddy Pro'}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -4908,6 +5579,11 @@ function MainAppContent() {
             <div className={activeTab === 5 ? 'block' : 'hidden'}>
               <SettingsPanel />
             </div>
+            {user.role === 'admin' && (
+              <div className={activeTab === 6 ? 'block' : 'hidden'}>
+                <AdminDashboardPanel />
+              </div>
+            )}
           </div>
         </main>
 
@@ -4920,7 +5596,7 @@ function MainAppContent() {
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 12px) + 8px)' }}
         >
           <div className="flex items-stretch justify-around pt-2.5 px-3">
-            {TABS.slice(0, 4).map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
+            {mobileBottomTabs.map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
               const active = activeTab === id
               const Icon = active ? IconSolid : IconOutline
               return (
@@ -4932,7 +5608,7 @@ function MainAppContent() {
                 >
                   {/* Icon container with bounce animation */}
                   <div className={`transition-all duration-300 transform active:scale-90 hover:scale-110 ${
-                    active ? 'scale-110 text-indigo-650 dark:text-indigo-400 -translate-y-1' : 'text-slate-400 dark:text-slate-500 hover:text-slate-650 dark:hover:text-slate-400'
+                    active ? 'scale-110 text-indigo-650 dark:text-indigo-400 -translate-y-1' : 'text-slate-400 dark:text-slate-500 hover:text-slate-655 dark:hover:text-slate-400'
                   }`}>
                     <Icon className="w-6 h-6 transition-transform duration-350 ease-spring" />
                   </div>
@@ -4942,7 +5618,7 @@ function MainAppContent() {
                   )}
                   {/* Label */}
                   <span className={`text-[10px] mt-1 font-bold tracking-wide transition-all duration-200 ${
-                    active ? 'text-indigo-600 dark:text-indigo-400 font-extrabold scale-105' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-650'
+                    active ? 'text-indigo-600 dark:text-indigo-400 font-extrabold scale-105' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-655'
                   }`}>
                     {label}
                   </span>
@@ -4966,7 +5642,7 @@ function MainAppContent() {
           <nav className={`relative w-72 max-w-[80vw] h-full flex flex-col justify-between p-6 shadow-2xl transition-transform duration-300 ${
             powerSaving ? 'bg-black border-l border-slate-900 text-white' :
             appTheme === 'light' ? 'bg-white border-l border-slate-200 text-slate-900' :
-            'bg-slate-950 border-l border-slate-900 text-slate-100'
+            'bg-slate-955 border-l border-slate-900 text-slate-100'
           }`}>
             <div className="space-y-6">
               {/* Drawer Header */}
@@ -4986,7 +5662,7 @@ function MainAppContent() {
 
               {/* Drawer Links */}
               <div className="space-y-2.5">
-                {TABS.slice(4).map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
+                {drawerTabs.map(({ id, label, iconOutline: IconOutline, iconSolid: IconSolid }) => {
                   const active = activeTab === id
                   const Icon = active ? IconSolid : IconOutline
                   return (
@@ -5002,13 +5678,13 @@ function MainAppContent() {
                             ? 'bg-blue-600/10 border-blue-500/30 text-blue-600 shadow-inner'
                             : 'bg-sky-500/10 border-sky-500/30 text-sky-400 shadow-inner'
                           : appTheme === 'light'
-                            ? 'bg-transparent border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                            : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-250'
+                            ? 'bg-transparent border-transparent text-slate-655 hover:bg-slate-100 hover:text-slate-900'
+                            : 'bg-transparent border-transparent text-slate-450 hover:bg-slate-900 hover:text-slate-250'
                       }`}
                     >
                       <Icon className={`w-5 h-5 ${active
                         ? appTheme === 'light' ? 'text-blue-600' : 'text-sky-400'
-                        : appTheme === 'light' ? 'text-slate-400' : 'text-slate-500'
+                        : appTheme === 'light' ? 'text-slate-450' : 'text-slate-500'
                       }`} />
                       <span className="text-base">{label}</span>
                     </button>
@@ -5018,7 +5694,16 @@ function MainAppContent() {
             </div>
 
             {/* Drawer Footer */}
-            <div className="pt-4 border-t border-slate-850 text-center">
+            <div className="pt-4 border-t border-slate-855 flex flex-col items-center gap-3">
+              <button 
+                onClick={() => {
+                  setUser(null)
+                  setIsDrawerOpen(false)
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 font-bold hover:bg-red-500/20 active:scale-95 transition-all text-xs cursor-pointer"
+              >
+                ออกจากระบบ (Logout)
+              </button>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Air Buddy Pro v1.2.0</p>
             </div>
           </nav>
