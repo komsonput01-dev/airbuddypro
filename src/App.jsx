@@ -2204,51 +2204,69 @@ function JobLoggerPanel() {
       return
     }
     setGettingLoc(true)
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords
-        setForm(prev => ({ ...prev, lat: latitude.toString(), lon: longitude.toString() }))
-        
-        try {
-          // Reverse geocoding using OpenStreetMap Nominatim API (Free and open-source)
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=th`, {
-            headers: {
-              'Accept-Language': 'th,en;q=0.9',
-              'User-Agent': 'AirBuddyPro/1.2'
-            }
-          })
-          if (res.ok) {
-            const data = await res.json()
-            if (data && data.display_name) {
-              let address = data.display_name;
-              if (data.address) {
-                const a = data.address;
-                const road = a.road || a.suburb || '';
-                const city = a.city || a.town || a.municipality || a.county || '';
-                const province = a.state || '';
-                if (road || city) {
-                  address = `${road}${road && city ? ', ' : ''}${city}${province ? ', ' : ''}${province}`;
-                }
-              }
-              setForm(prev => ({ ...prev, location: address }))
-            }
+
+    const options = { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+
+    const successCallback = async (position) => {
+      const { latitude, longitude } = position.coords
+      setForm(prev => ({ ...prev, lat: latitude.toString(), lon: longitude.toString() }))
+      
+      try {
+        // Reverse geocoding using OpenStreetMap Nominatim API (Free and open-source)
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=th`, {
+          headers: {
+            'Accept-Language': 'th,en;q=0.9',
+            'User-Agent': 'AirBuddyPro/1.2'
           }
-        } catch (err) {
-          console.error('Reverse Geocoding failed:', err)
-        } finally {
-          setGettingLoc(false)
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data && data.display_name) {
+            let address = data.display_name;
+            if (data.address) {
+              const a = data.address;
+              const road = a.road || a.suburb || '';
+              const city = a.city || a.town || a.municipality || a.county || '';
+              const province = a.state || '';
+              if (road || city) {
+                address = `${road}${road && city ? ', ' : ''}${city}${province ? ', ' : ''}${province}`;
+              }
+            }
+            setForm(prev => ({ ...prev, location: address }))
+          }
         }
-      },
-      (error) => {
+      } catch (err) {
+        console.error('Reverse Geocoding failed:', err)
+      } finally {
+        setGettingLoc(false)
+      }
+    }
+
+    const errorCallback = (error) => {
+      // If high accuracy times out or fails, try again with low accuracy fallback
+      if (options.enableHighAccuracy) {
+        console.warn("High accuracy geolocation failed, falling back to low accuracy...");
+        options.enableHighAccuracy = false;
+        options.timeout = 10000;
+        navigator.geolocation.getCurrentPosition(successCallback, (err2) => {
+          setGettingLoc(false)
+          if (err2.code === err2.PERMISSION_DENIED) {
+            alert('❌ กรุณาอนุญาตให้สิทธิ์การเข้าถึงตำแหน่งพิกัดบนเบราว์เซอร์ของคุณ')
+          } else {
+            alert(`❌ เกิดข้อผิดพลาดในการดึงตำแหน่ง: ${err2.message}`)
+          }
+        }, options)
+      } else {
         setGettingLoc(false)
         if (error.code === error.PERMISSION_DENIED) {
           alert('❌ กรุณาอนุญาตให้สิทธิ์การเข้าถึงตำแหน่งพิกัดบนเบราว์เซอร์ของคุณ')
         } else {
           alert(`❌ เกิดข้อผิดพลาดในการดึงตำแหน่ง: ${error.message}`)
         }
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    )
+      }
+    }
+
+    navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options)
   }
 
   const handleSave = async () => {
