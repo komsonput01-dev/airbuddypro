@@ -4094,19 +4094,21 @@ function NameplateScannerPanel({ onNavigate }) {
                 <AlertCircle size={32} className="text-amber-500 mx-auto" />
                 <p className="text-xs font-bold text-slate-400">{error}</p>
                 <div className="flex flex-col gap-2 w-full">
-                  <label 
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-purple-500/30 bg-purple-500/20 text-purple-300 font-bold text-sm hover:bg-purple-500/30 transition-all cursor-pointer"
-                  >
-                    <Camera size={18} />
-                    ถ่ายรูปด้วยกล้องจริงบนมือถือ (Native Camera)
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="absolute w-0 h-0 opacity-0 -z-10"
-                      onChange={handleImageUpload}
-                    />
-                  </label>
+                  <div className="block md:hidden w-full">
+                    <label 
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-purple-500/30 bg-purple-500/20 text-purple-300 font-bold text-sm hover:bg-purple-500/30 transition-all cursor-pointer"
+                    >
+                      <Camera size={18} />
+                      ถ่ายรูปด้วยกล้องจริงบนมือถือ (Native Camera)
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="absolute w-0 h-0 opacity-0 -z-10"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  </div>
                   <button onClick={handleScan} className="text-xs font-black text-purple-400 border border-purple-500/20 px-3 py-1.5 rounded-lg bg-purple-500/5 hover:bg-purple-500/10 w-full">
                     คลิกเพื่อจำลองสแกนทันที (Bypass)
                   </button>
@@ -4119,23 +4121,27 @@ function NameplateScannerPanel({ onNavigate }) {
             <div className="flex gap-2">
               {cameraState === 'idle' && (
                 <div className="flex flex-col gap-2.5 w-full">
-                  <button id="scanner-start" onClick={startCamera} className="btn-primary w-full" style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
-                    <Camera size={20} />
-                    เปิดระบบกล้องสแกนสด (Webcam)
-                  </button>
-                  <label 
-                    className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 font-bold text-sm hover:bg-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer"
-                  >
-                    <Camera size={18} />
-                    ถ่ายรูปด้วยกล้องจริงบนมือถือ (Native Camera)
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="absolute w-0 h-0 opacity-0 -z-10"
-                      onChange={handleImageUpload}
-                    />
-                  </label>
+                  <div className="hidden md:block w-full">
+                    <button id="scanner-start" onClick={startCamera} className="btn-primary w-full" style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
+                      <Camera size={20} />
+                      เปิดระบบกล้องสแกนสด (Webcam)
+                    </button>
+                  </div>
+                  <div className="block md:hidden w-full">
+                    <label 
+                      className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 font-bold text-sm hover:bg-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer"
+                    >
+                      <Camera size={18} />
+                      ถ่ายรูปด้วยกล้องจริงบนมือถือ (Native Camera)
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="absolute w-0 h-0 opacity-0 -z-10"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  </div>
                 </div>
               )}
 
