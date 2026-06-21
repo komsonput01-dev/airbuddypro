@@ -4764,22 +4764,13 @@ function SettingsPanel() {
               <label className="label mb-1">หมายเลขพร้อมเพย์รับชำระเงิน (PromptPay ID)</label>
               <input
                 type="text"
-                placeholder="เบอร์มือถือ 10 หลัก หรือ เลขประจำตัวประชาชน 13 หลัก"
-                value={promptPayId}
-                onChange={e => setPromptPayId(e.target.value)}
-                onBlur={e => {
-                  const val = formatPhoneOrPromptPay(e.target.value)
-                  setPromptPayId(val)
-                  if (user && user.user_id && supabase) {
-                    supabase.from('profiles').update({ promptpay_id: val }).eq('id', user.user_id).then(({error}) => {
-                      if (error) console.error('Failed to update promptpay_id in Supabase', error)
-                    })
-                  }
-                }}
-                className="input-field text-sm font-semibold mono"
+                placeholder="ไม่มีข้อมูลในระบบ"
+                value={promptPayId || 'EMPTY'}
+                readOnly
+                className="input-field text-sm font-semibold mono opacity-70 bg-slate-900/50 cursor-not-allowed"
               />
               <p className="text-[10px] text-slate-500 font-bold mt-1 leading-tight">
-                * ต้องเป็นเบอร์หรือเลขบัตรที่ผูกกับบริการพร้อมเพย์เรียบร้อยแล้วเท่านั้น
+                * อ่านข้อมูลจากฐานข้อมูลเท่านั้น (หากต้องการแก้ไขให้แก้ไขใน Supabase โดยตรง)
               </p>
             </div>
           </div>
