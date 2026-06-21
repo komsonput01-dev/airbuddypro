@@ -3824,9 +3824,6 @@ function JobLoggerPanel() {
                     displayPhone = parts[1]
                   }
                   let displayNotes = (job.notes !== undefined && job.notes !== null) ? job.notes.toString() : ''
-                  if (displayNotes.includes('ทดสอบการส่งข้อมูลอัตโนมัติเข้า Google Sheets สำเร็จเรียบร้อย!')) {
-                    displayNotes = ''
-                  }
                   return (
                     <div key={job.id || idx} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
                       <button
