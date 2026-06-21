@@ -4105,13 +4105,19 @@ function NameplateScannerPanel({ onNavigate }) {
                 <AlertCircle size={32} className="text-amber-500 mx-auto" />
                 <p className="text-xs font-bold text-slate-400">{error}</p>
                 <div className="flex flex-col gap-2 w-full">
-                  <button 
-                    onClick={() => cameraInputRef.current?.click()} 
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-purple-500/30 bg-purple-500/20 text-purple-300 font-bold text-sm hover:bg-purple-500/30 transition-all tap-target"
+                  <label 
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-purple-500/30 bg-purple-500/20 text-purple-300 font-bold text-sm hover:bg-purple-500/30 transition-all cursor-pointer"
                   >
                     <Camera size={18} />
                     ถ่ายรูปด้วยกล้องจริงบนมือถือ (Native Camera)
-                  </button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                  </label>
                   <button onClick={handleScan} className="text-xs font-black text-purple-400 border border-purple-500/20 px-3 py-1.5 rounded-lg bg-purple-500/5 hover:bg-purple-500/10 w-full">
                     คลิกเพื่อจำลองสแกนทันที (Bypass)
                   </button>
@@ -4128,13 +4134,19 @@ function NameplateScannerPanel({ onNavigate }) {
                     <Camera size={20} />
                     เปิดระบบกล้องสแกนสด (Webcam)
                   </button>
-                  <button 
-                    onClick={() => cameraInputRef.current?.click()} 
-                    className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 font-bold text-sm hover:bg-purple-500/20 hover:border-purple-500/40 transition-all tap-target"
+                  <label 
+                    className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 font-bold text-sm hover:bg-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer"
                   >
                     <Camera size={18} />
                     ถ่ายรูปด้วยกล้องจริงบนมือถือ (Native Camera)
-                  </button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                  </label>
                 </div>
               )}
 
@@ -4173,29 +4185,19 @@ function NameplateScannerPanel({ onNavigate }) {
                   <span className="text-xs text-slate-500 font-bold">หรือ</span>
                   <div className="flex-1 h-px bg-slate-800" />
                 </div>
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
-                <button
+                <label
                   id="scanner-upload"
-                  onClick={() => imageInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border-2 border-dashed border-purple-500/40 bg-purple-500/5 text-purple-300 font-bold text-sm hover:border-purple-500/70 hover:bg-purple-500/10 transition-all tap-target"
+                  className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border-2 border-dashed border-purple-500/40 bg-purple-500/5 text-purple-300 font-bold text-sm hover:border-purple-500/70 hover:bg-purple-500/10 transition-all cursor-pointer"
                 >
                   <ImagePlus size={18} />
                   อัปโหลดรูปภาพเนมเพลทจากคลังภาพ
-                </button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                  />
+                </label>
               </>
             )}
           </div>
