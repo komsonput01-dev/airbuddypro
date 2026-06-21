@@ -770,21 +770,9 @@ export function AppProvider({ children }) {
 
   useEffect(() => { localStorage.setItem('abp_shop_name', shopName) }, [shopName])
   useEffect(() => { localStorage.setItem('abp_shop_address', shopAddress) }, [shopAddress])
-  const isPromptPayMounted = useRef(false)
   useEffect(() => { 
     localStorage.setItem('abp_promptpay_id', promptPayId) 
-    
-    if (!isPromptPayMounted.current) {
-      isPromptPayMounted.current = true
-      return
-    }
-
-    if (user && user.user_id && supabase) {
-      supabase.from('profiles').update({ promptpay_id: promptPayId }).eq('id', user.user_id).then(({error}) => {
-        if (error) console.error('Failed to update promptpay_id in Supabase', error)
-      })
-    }
-  }, [promptPayId, user])
+  }, [promptPayId])
 
   useEffect(() => { localStorage.setItem('abp_unit', unitSystem) }, [unitSystem])
   useEffect(() => { localStorage.setItem('abp_font', fontSize) }, [fontSize])
@@ -4778,7 +4766,15 @@ function SettingsPanel() {
                 placeholder="เบอร์มือถือ 10 หลัก หรือ เลขประจำตัวประชาชน 13 หลัก"
                 value={promptPayId}
                 onChange={e => setPromptPayId(e.target.value)}
-                onBlur={e => setPromptPayId(formatPhoneOrPromptPay(e.target.value))}
+                onBlur={e => {
+                  const val = formatPhoneOrPromptPay(e.target.value)
+                  setPromptPayId(val)
+                  if (user && user.user_id && supabase) {
+                    supabase.from('profiles').update({ promptpay_id: val }).eq('id', user.user_id).then(({error}) => {
+                      if (error) console.error('Failed to update promptpay_id in Supabase', error)
+                    })
+                  }
+                }}
                 className="input-field text-sm font-semibold mono"
               />
               <p className="text-[10px] text-slate-500 font-bold mt-1 leading-tight">
