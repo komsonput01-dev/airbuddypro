@@ -4103,7 +4103,7 @@ function NameplateScannerPanel({ onNavigate }) {
                       type="file"
                       accept="image/*"
                       capture="environment"
-                      className="hidden"
+                      className="absolute w-0 h-0 opacity-0 -z-10"
                       onChange={handleImageUpload}
                     />
                   </label>
@@ -4132,7 +4132,7 @@ function NameplateScannerPanel({ onNavigate }) {
                       type="file"
                       accept="image/*"
                       capture="environment"
-                      className="hidden"
+                      className="absolute w-0 h-0 opacity-0 -z-10"
                       onChange={handleImageUpload}
                     />
                   </label>
@@ -4183,7 +4183,7 @@ function NameplateScannerPanel({ onNavigate }) {
                   <input
                     type="file"
                     accept="image/*"
-                    className="hidden"
+                    className="absolute w-0 h-0 opacity-0 -z-10"
                     onChange={handleImageUpload}
                   />
                 </label>
