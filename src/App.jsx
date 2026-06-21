@@ -838,13 +838,19 @@ async function syncQueue(onProgress) {
     // 1. Sync to Google Sheets (GAS)
     if (hasGas) {
       try {
+        const gasRecord = {
+          ...record,
+          location: record.location && record.phone 
+            ? `${record.location} / ${record.phone}` 
+            : (record.location || record.phone || '')
+        }
         await fetch(gasUrl, {
           method: 'POST',
           mode: 'no-cors',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(record)
+          body: JSON.stringify(gasRecord)
         })
         gasSuccess = true
       } catch (err) {
@@ -899,13 +905,19 @@ async function saveJob(record, isOnline) {
   // 1. Save to Google Sheets
   if (hasGas) {
     try {
+      const gasRecord = {
+        ...record,
+        location: record.location && record.phone 
+          ? `${record.location} / ${record.phone}` 
+          : (record.location || record.phone || '')
+      }
       await fetch(gasUrl, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(record)
+        body: JSON.stringify(gasRecord)
       })
       gasSaved = true
     } catch (err) {
@@ -2715,6 +2727,13 @@ function JobLoggerPanel() {
               <div className="space-y-2.5 max-h-[300px] overflow-y-auto">
                 {filteredJobs.map((job, idx) => {
                   const expanded = expandedJobIdx === idx
+                  let displayLocation = job.location || ''
+                  let displayPhone = job.phone || ''
+                  if (displayLocation.includes(' / ') && !displayPhone) {
+                    const parts = displayLocation.split(' / ')
+                    displayLocation = parts[0]
+                    displayPhone = parts[1]
+                  }
                   return (
                     <div key={job.id || idx} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
                       <button
@@ -2732,7 +2751,8 @@ function JobLoggerPanel() {
                       {expanded && (
                         <div className="border-t border-slate-800/80 bg-slate-950/20 px-4 py-3.5 grid grid-cols-2 gap-3 text-xs font-semibold">
                           {[
-                            ['พิกัดตำแหน่ง', job.location],
+                            ['พิกัดตำแหน่ง', displayLocation],
+                            ['เบอร์โทรศัพท์', displayPhone],
                             ['หมายเลขซีเรียล', job.serialNo],
                             [`แรงดันเกจฝั่งต่ำ ก่อน/หลัง`, `${job.lowBefore || '-'} / ${job.lowAfter || '-'} ${job.unit || 'PSI'}`],
                             [`แรงดันเกจฝั่งสูง ก่อน/หลัง`, `${job.highBefore || '-'} / ${job.highAfter || '-'} ${job.unit || 'PSI'}`],
@@ -2756,8 +2776,8 @@ function JobLoggerPanel() {
                               onClick={() => {
                                 setForm({
                                   customer: job.customer || '',
-                                  phone: job.phone || '',
-                                  location: job.location || '',
+                                  phone: displayPhone,
+                                  location: displayLocation,
                                   model: job.model || '',
                                   brand: job.brand || '',
                                   refrigerant: job.refrigerant || 'R32',
