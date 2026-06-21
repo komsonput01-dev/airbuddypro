@@ -896,7 +896,7 @@ async function syncQueue(onProgress) {
           method: 'POST',
           mode: 'no-cors',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/plain'
           },
           body: JSON.stringify(record)
         })
@@ -962,7 +962,7 @@ async function saveJob(record, isOnline) {
       const response = await fetch(gasUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/plain'
         },
         body: JSON.stringify(normalizedRecord)
       })
@@ -977,7 +977,7 @@ async function saveJob(record, isOnline) {
           method: 'POST',
           mode: 'no-cors',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/plain'
           },
           body: JSON.stringify(normalizedRecord)
         })
@@ -990,7 +990,7 @@ async function saveJob(record, isOnline) {
           method: 'POST',
           mode: 'no-cors',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/plain'
           },
           body: JSON.stringify(normalizedRecord)
         })
@@ -4907,7 +4907,7 @@ function LoginScreen({ onLoginSuccess }) {
       const response = await fetch(gasUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/plain'
         },
         body: JSON.stringify({
           action: 'login',
