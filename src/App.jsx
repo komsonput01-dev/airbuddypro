@@ -2539,7 +2539,11 @@ function JobLoggerPanel() {
     navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options)
   }
 
-  const isFormUnchanged = lastSavedForm && Object.keys(EMPTY_FORM).every(key => form[key] === lastSavedForm[key])
+  const isFormUnchanged = !!(lastSavedForm && Object.keys(EMPTY_FORM).every(key => {
+    const val1 = form[key] !== undefined && form[key] !== null ? form[key].toString() : ''
+    const val2 = lastSavedForm[key] !== undefined && lastSavedForm[key] !== null ? lastSavedForm[key].toString() : ''
+    return val1 === val2
+  }))
 
   const handleSave = async () => {
     if (!form.customer || !form.customer.trim()) {
