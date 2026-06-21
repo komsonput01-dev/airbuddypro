@@ -838,19 +838,13 @@ async function syncQueue(onProgress) {
     // 1. Sync to Google Sheets (GAS)
     if (hasGas) {
       try {
-        const gasRecord = {
-          ...record,
-          location: record.location && record.phone 
-            ? `${record.location} / ${record.phone}` 
-            : (record.location || record.phone || '')
-        }
         await fetch(gasUrl, {
           method: 'POST',
           mode: 'no-cors',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(gasRecord)
+          body: JSON.stringify(record)
         })
         gasSuccess = true
       } catch (err) {
@@ -905,19 +899,13 @@ async function saveJob(record, isOnline) {
   // 1. Save to Google Sheets
   if (hasGas) {
     try {
-      const gasRecord = {
-        ...record,
-        location: record.location && record.phone 
-          ? `${record.location} / ${record.phone}` 
-          : (record.location || record.phone || '')
-      }
       await fetch(gasUrl, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(gasRecord)
+        body: JSON.stringify(record)
       })
       gasSaved = true
     } catch (err) {
