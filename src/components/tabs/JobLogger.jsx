@@ -96,6 +96,21 @@ function generateLINEReport({ form, sharedBTU, unitSystem }) {
 ขอบคุณที่ใช้บริการครับ 🙏`
 }
 
+const InputField = ({ id, label, placeholder, value, onChange, type = 'text', inputMode }) => (
+  <div>
+    <label className="label">{label}</label>
+    <input
+      id={id}
+      type={type}
+      inputMode={inputMode}
+      placeholder={placeholder}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="input-field"
+    />
+  </div>
+)
+
 // ─── Job Logger Form ─────────────────────────────────────────────────────────
 function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
   const { isOnline } = useApp()
@@ -148,21 +163,6 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
     const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
     window.open(url, '_blank');
   }
-
-  const InputField = ({ id, label, placeholder, value, onChange, type = 'text', inputMode }) => (
-    <div>
-      <label className="label">{label}</label>
-      <input
-        id={id}
-        type={type}
-        inputMode={inputMode}
-        placeholder={placeholder}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="input-field"
-      />
-    </div>
-  )
 
   const pressureLabel = `แรงดัน (${unitSystem})`
 
@@ -304,6 +304,7 @@ function JobHistory({ refresh }) {
     setLoading(false)
   }, [])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [load, refresh])
 
   const filtered = jobs.filter(j =>
