@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
+import ReloadPrompt from './components/ReloadPrompt'
+import './index.css'
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import {
@@ -5726,6 +5728,7 @@ export default function App() {
     <AppProvider>
       <CalculatorProvider>
         <MainAppContent />
+        <ReloadPrompt />
       </CalculatorProvider>
     </AppProvider>
   )
