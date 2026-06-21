@@ -2845,10 +2845,18 @@ function JobLoggerPanel() {
           `🛠️ บริการแอร์: ${form.brand || '-'} (${form.model || '-'})\n` +
           `💰 ยอดสุทธิ: ${netAmount.toLocaleString('th-TH')} บาท\n` +
           `🏦 รับชำระผ่าน PromptPay QR เรียบร้อยแล้ว\n` +
-          `ดาวน์โหลดใบเสร็จ PDF ได้จากประวัติเบราว์เซอร์ของคุณแล้วครับ (${filename})`
+          `ดาวน์โหลดใบเสร็จ PDF ในเครื่องของคุณแล้วครับ\n\n` +
+          `เปิดแอป Air Buddy Pro: https://airbuddypro.vercel.app/`
 
-        const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(lineText)}`;
-        window.open(lineUrl, '_blank');
+        // Use rel="noreferrer" link to prevent referrer leak (Vercel Preview URL protection crash)
+        const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(lineText)}`
+        const a = document.createElement('a')
+        a.href = lineUrl
+        a.target = '_blank'
+        a.rel = 'noreferrer'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
       } else {
         doc.save(`receipt_${receiptNo}.pdf`)
       }
@@ -3007,8 +3015,14 @@ function JobLoggerPanel() {
   }
 
   const handleOpenLINE = () => {
-    const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
-    window.open(url, '_blank');
+    const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport + '\n\nเปิดแอป: https://airbuddypro.vercel.app/')}`
+    const a = document.createElement('a')
+    a.href = lineUrl
+    a.target = '_blank'
+    a.rel = 'noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   const handleDeleteJob = async (job) => {
