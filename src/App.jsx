@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
+import { jsPDF } from 'jspdf'
+import QRCode from 'qrcode'
 import {
   Wind, Zap, Stethoscope, BookOpen, Camera, Library, Settings, Menu,
   Sun, ChevronRight, ChevronLeft, CheckCircle, ArrowRight, Scan,
@@ -722,6 +724,14 @@ export function AppProvider({ children }) {
   const [appTheme, setAppTheme] = useState(() => localStorage.getItem('abp_theme') || 'dark')
   const [isOnline, setIsOnline] = useState(navigator.onLine)
 
+  const [shopName, setShopName] = useState(() => localStorage.getItem('abp_shop_name') || '')
+  const [shopAddress, setShopAddress] = useState(() => localStorage.getItem('abp_shop_address') || '')
+  const [promptPayId, setPromptPayId] = useState(() => localStorage.getItem('abp_promptpay_id') || '')
+
+  useEffect(() => { localStorage.setItem('abp_shop_name', shopName) }, [shopName])
+  useEffect(() => { localStorage.setItem('abp_shop_address', shopAddress) }, [shopAddress])
+  useEffect(() => { localStorage.setItem('abp_promptpay_id', promptPayId) }, [promptPayId])
+
   useEffect(() => { localStorage.setItem('abp_unit', unitSystem) }, [unitSystem])
   useEffect(() => { localStorage.setItem('abp_font', fontSize) }, [fontSize])
   useEffect(() => { localStorage.setItem('abp_power', powerSaving) }, [powerSaving])
@@ -767,7 +777,10 @@ export function AppProvider({ children }) {
       fontSize, setFontSize,
       powerSaving, setPowerSaving,
       appTheme, setAppTheme,
-      isOnline, setIsOnline
+      isOnline, setIsOnline,
+      shopName, setShopName,
+      shopAddress, setShopAddress,
+      promptPayId, setPromptPayId
     }}>
       {children}
     </AppContext.Provider>
@@ -1080,6 +1093,7 @@ const EMPTY_FORM = {
   lowBefore: '', highBefore: '', lowAfter: '', highAfter: '',
   current: '', notes: '',
   lat: '', lon: '',
+  laborFee: '', materialFee: '', discount: '',
 }
 
 function generateLINEReport({ form, sharedBTU, unitSystem }) {
@@ -1114,6 +1128,97 @@ function generateLINEReport({ form, sharedBTU, unitSystem }) {
 📝 **บันทึกช่าง:** ${form.notes || '-'}
 ----------------------------------------
 ขอบคุณที่ใช้บริการครับ 🙏`
+}
+
+// ─── PROMPTPAY QR GENERATOR & THAI FONT LOADER FOR INVOICE PDF ───────────────
+function crc16ccitt(data) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < data.length; i++) {
+    let x = ((crc >> 8) ^ data.charCodeAt(i)) & 0xFF;
+    x ^= x >> 4;
+    crc = ((crc << 8) ^ (x << 12) ^ (x << 5) ^ x) & 0xFFFF;
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function generatePromptPayQR(target, amount) {
+  let sanitized = (target || '').toString().replace(/\D/g, '');
+  if (!sanitized) return '';
+
+  let targetType = '';
+  let formattedTarget = '';
+
+  if (sanitized.length === 10) {
+    formattedTarget = '0066' + sanitized.substring(1);
+    targetType = '01';
+  } else if (sanitized.length === 13) {
+    formattedTarget = sanitized;
+    targetType = '02';
+  } else {
+    formattedTarget = sanitized;
+    targetType = '01';
+  }
+
+  let amountStr = '';
+  if (amount !== undefined && amount !== null && amount > 0) {
+    const fixedAmount = Number(amount).toFixed(2);
+    amountStr = '54' + fixedAmount.length.toString().padStart(2, '0') + fixedAmount;
+  }
+
+  const aid = 'A000000677010111';
+  const aidTLV = '00' + aid.length.toString().padStart(2, '0') + aid;
+  const targetTLV = targetType + formattedTarget.length.toString().padStart(2, '0') + formattedTarget;
+  const merchantAccountInfoValue = aidTLV + targetTLV;
+  const merchantAccountInfo = '29' + merchantAccountInfoValue.length.toString().padStart(2, '0') + merchantAccountInfoValue;
+
+  let payload = '000201' +
+                (amountStr ? '010212' : '010211') +
+                merchantAccountInfo +
+                '5303764' +
+                amountStr +
+                '5802TH' +
+                '6304';
+
+  const crc = crc16ccitt(payload);
+  return payload + crc;
+}
+
+let cachedSarabunRegular = null;
+let cachedSarabunBold = null;
+
+async function loadSarabunFonts() {
+  if (cachedSarabunRegular && cachedSarabunBold) {
+    return { regular: cachedSarabunRegular, bold: cachedSarabunBold };
+  }
+
+  const [regRes, boldRes] = await Promise.all([
+    fetch('https://fonts.gstatic.com/s/sarabun/v17/DtVjJx26TKEr37c9WBI.ttf'),
+    fetch('https://fonts.gstatic.com/s/sarabun/v17/DtVmJx26TKEr37c9YK5sulw.ttf')
+  ]);
+
+  if (!regRes.ok || !boldRes.ok) {
+    throw new Error('Failed to fetch Sarabun font files from Google CDN.');
+  }
+
+  const [regBuffer, boldBuffer] = await Promise.all([
+    regRes.arrayBuffer(),
+    boldRes.arrayBuffer()
+  ]);
+
+  const arrayBufferToBase64 = (buffer) => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
+
+  cachedSarabunRegular = arrayBufferToBase64(regBuffer);
+  cachedSarabunBold = arrayBufferToBase64(boldBuffer);
+
+  return { regular: cachedSarabunRegular, bold: cachedSarabunBold };
 }
 
 // 0. Combined Calculator Wizard Tab Component
@@ -2429,7 +2534,10 @@ const formatThaiAddress = (inputData) => {
 
 // 4. Job Logger & Refrigerant Table Tab Component
 function JobLoggerPanel() {
-  const { unitSystem, isOnline, appTheme } = useApp()
+  const { 
+    unitSystem, isOnline, appTheme,
+    shopName, shopAddress, promptPayId 
+  } = useApp()
   const { sharedBTU, scannedJobData, setScannedJobData } = useCalculator()
 
   const [subTab, setSubTab] = useState(0)
@@ -2444,6 +2552,314 @@ function JobLoggerPanel() {
   const [lineReport, setLineReport] = useState('')
   const [copied, setCopied] = useState(false)
   const [showReport, setShowReport] = useState(false)
+
+  // Billing and Payment states
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('')
+
+  const netAmount = Math.max(0, (parseFloat(form.laborFee) || 0) + (parseFloat(form.materialFee) || 0) - (parseFloat(form.discount) || 0))
+
+  // Generate PromptPay QR Code payload & image URL
+  const handleOpenPayment = async () => {
+    if (!promptPayId) {
+      alert('⚠️ โปรดตั้งค่า "หมายเลขพร้อมเพย์" ในแท็บตั้งค่าระบบก่อนรับชำระเงิน!')
+      return
+    }
+    
+    try {
+      const payload = generatePromptPayQR(promptPayId, netAmount)
+      const dataUrl = await QRCode.toDataURL(payload, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff'
+        }
+      })
+      setQrCodeDataUrl(dataUrl)
+      setShowPaymentModal(true)
+    } catch (err) {
+      console.error('Failed to generate PromptPay QR:', err)
+      alert('❌ ไม่สามารถสร้าง QR Code ชำระเงินได้')
+    }
+  }
+
+  const handleGeneratePdf = async (shareToLine = false) => {
+    setGeneratingPdf(true)
+    try {
+      const { regular, bold } = await loadSarabunFonts()
+
+      const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      doc.addFileToVFS('Sarabun-Regular.ttf', regular)
+      doc.addFont('Sarabun-Regular.ttf', 'Sarabun', 'normal')
+      doc.addFileToVFS('Sarabun-Bold.ttf', bold)
+      doc.addFont('Sarabun-Bold.ttf', 'Sarabun', 'bold')
+
+      doc.setProperties({
+        title: `Invoice-${form.customer || 'Customer'}`,
+        subject: 'Air Buddy Pro Service Invoice',
+        author: shopName || 'Air Buddy Pro Technician'
+      })
+
+      const margin = 15
+      let y = 20
+
+      // Brand Title Header
+      doc.setFillColor(15, 23, 42)
+      doc.rect(margin, y, 180, 25, 'F')
+
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('Sarabun', 'bold')
+      doc.setFontSize(16)
+      doc.text('AIR BUDDY PRO - ใบเสร็จรับเงิน/ใบส่งงาน', margin + 8, y + 10)
+
+      doc.setFont('Sarabun', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(200, 200, 200)
+      doc.text('เครื่องมือสากลและระบบบันทึกงานช่างแอร์ไทยมืออาชีพ', margin + 8, y + 16)
+
+      const receiptNo = 'ABP-' + Date.now().toString().slice(-8)
+      const dateStr = new Date().toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+
+      doc.setFontSize(10)
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('Sarabun', 'bold')
+      doc.text(`เลขที่: ${receiptNo}`, margin + 120, y + 10)
+      doc.text(`วันที่: ${dateStr}`, margin + 120, y + 16)
+
+      y += 33
+
+      // Shop & Customer Columns
+      doc.setFont('Sarabun', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(15, 23, 42)
+      doc.text('ข้อมูลผู้ให้บริการ (ช่าง):', margin, y)
+
+      doc.setFont('Sarabun', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(71, 85, 105)
+      doc.text(shopName || 'ช่างแอร์ทั่วไป (ไม่ได้ตั้งค่าชื่อร้าน)', margin, y + 5.5)
+      
+      const shopAddrLines = doc.splitTextToSize(shopAddress || 'เบอร์ติดต่อ: - (ไม่ได้ตั้งค่าที่อยู่ร้าน)', 85)
+      doc.text(shopAddrLines, margin, y + 11)
+
+      // Right: Customer info
+      doc.setFont('Sarabun', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(15, 23, 42)
+      doc.text('ข้อมูลผู้รับบริการ (ลูกค้า):', margin + 95, y)
+
+      doc.setFont('Sarabun', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(71, 85, 105)
+      doc.text(form.customer || '-', margin + 95, y + 5.5)
+      doc.text(`โทรศัพท์: ${form.phone || '-'}`, margin + 95, y + 11)
+      
+      const custAddrLines = doc.splitTextToSize(`สถานที่ติดตั้ง: ${form.location || '-'}`, 85)
+      doc.text(custAddrLines, margin + 95, y + 16.5)
+
+      const maxColHeight = Math.max(11 + shopAddrLines.length * 5, 16.5 + custAddrLines.length * 5)
+      y += maxColHeight + 8
+
+      // Horizontal separator line
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(0.5)
+      doc.line(margin, y, margin + 180, y)
+      y += 8
+
+      // Service Details (Machine specs)
+      doc.setFont('Sarabun', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(15, 23, 42)
+      doc.text('รายละเอียดระบบปรับอากาศ', margin, y)
+      y += 6
+
+      // Box representing specs
+      doc.setFillColor(248, 250, 252)
+      doc.rect(margin, y, 180, 28, 'F')
+      doc.setDrawColor(226, 232, 240)
+      doc.rect(margin, y, 180, 28, 'S')
+
+      doc.setFont('Sarabun', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(71, 85, 105)
+
+      // Column 1
+      doc.text(`แบรนด์แอร์: ${form.brand || '-'}`, margin + 6, y + 7)
+      doc.text(`รุ่นแอร์ (Model): ${form.model || '-'}`, margin + 6, y + 14)
+      doc.text(`หมายเลขเครื่อง (S/N): ${form.serialNo || '-'}`, margin + 6, y + 21)
+
+      // Column 2
+      doc.text(`ประเภทน้ำยา: ${form.refrigerant || '-'}`, margin + 95, y + 7)
+      doc.text(`กระแสไฟฟ้า (Current): ${form.current || '-'} แอมป์`, margin + 95, y + 14)
+      doc.text(`พิกัดละติจูด/ลองจิจูด: ${form.lat || '-'}, ${form.lon || '-'}`, margin + 95, y + 21)
+
+      y += 36
+
+      // Pressure Stats Table
+      doc.setFont('Sarabun', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(15, 23, 42)
+      doc.text('ตารางบันทึกแรงดันน้ำยาแอร์ (Refrigerant Pressure Check)', margin, y)
+      y += 6
+
+      doc.setFillColor(15, 23, 42)
+      doc.rect(margin, y, 180, 8, 'F')
+      doc.setFont('Sarabun', 'bold')
+      doc.setFontSize(9)
+      doc.setTextColor(255, 255, 255)
+      doc.text('พิกัดการวัดแรงดันน้ำยาแอร์', margin + 6, y + 5.5)
+      doc.text(`แรงดันก่อนบริการ (${unitSystem})`, margin + 65, y + 5.5)
+      doc.text(`แรงดันหลังบริการ (${unitSystem})`, margin + 120, y + 5.5)
+
+      doc.setFont('Sarabun', 'normal')
+      doc.setTextColor(71, 85, 105)
+
+      // Row 1: Low Pressure
+      y += 8
+      doc.setFillColor(255, 255, 255)
+      doc.rect(margin, y, 180, 8, 'F')
+      doc.rect(margin, y, 180, 8, 'S')
+      doc.text('Low Gauge Pressure (ท่อทางดูด / ท่อใหญ่)', margin + 6, y + 5.5)
+      doc.text(form.lowBefore || '-', margin + 65, y + 5.5)
+      doc.text(form.lowAfter || '-', margin + 120, y + 5.5)
+
+      // Row 2: High Pressure
+      y += 8
+      doc.setFillColor(248, 250, 252)
+      doc.rect(margin, y, 180, 8, 'F')
+      doc.rect(margin, y, 180, 8, 'S')
+      doc.text('High Gauge Pressure (ท่อทางส่ง / ท่อเล็ก)', margin + 6, y + 5.5)
+      doc.text(form.highBefore || '-', margin + 65, y + 5.5)
+      doc.text(form.highAfter || '-', margin + 120, y + 5.5)
+
+      y += 16
+
+      // Price breakdown
+      doc.setFont('Sarabun', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(15, 23, 42)
+      doc.text('รายละเอียดค่าบริการและค่าอะไหล่ (Pricing Breakdown)', margin, y)
+      y += 6
+
+      doc.setFillColor(51, 65, 85)
+      doc.rect(margin, y, 180, 8, 'F')
+      doc.setFont('Sarabun', 'bold')
+      doc.setFontSize(9)
+      doc.setTextColor(255, 255, 255)
+      doc.text('รายการชำระเงิน', margin + 6, y + 5.5)
+      doc.text('จำนวนเงิน (บาท)', margin + 140, y + 5.5)
+
+      doc.setFont('Sarabun', 'normal')
+      doc.setTextColor(71, 85, 105)
+
+      // Labor fee
+      y += 8
+      doc.rect(margin, y, 180, 8, 'S')
+      doc.text('1. ค่าบริการตรวจเช็คและค่าแรงช่าง (Labor / Service Fee)', margin + 6, y + 5.5)
+      doc.text((parseFloat(form.laborFee) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }), margin + 140, y + 5.5)
+
+      // Material fee
+      y += 8
+      doc.rect(margin, y, 180, 8, 'S')
+      doc.text('2. ค่าวัสดุ อะไหล่ และน้ำยาแอร์ (Parts & Refrigerant Fee)', margin + 6, y + 5.5)
+      doc.text((parseFloat(form.materialFee) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }), margin + 140, y + 5.5)
+
+      // Discount
+      y += 8
+      doc.rect(margin, y, 180, 8, 'S')
+      doc.text('3. ส่วนลดการให้บริการ (Special Discount)', margin + 6, y + 5.5)
+      doc.text('-' + (parseFloat(form.discount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }), margin + 140, y + 5.5)
+
+      // Net Amount (Total)
+      y += 8
+      doc.setFillColor(241, 245, 249)
+      doc.rect(margin, y, 180, 10, 'F')
+      doc.rect(margin, y, 180, 10, 'S')
+      doc.setFont('Sarabun', 'bold')
+      doc.setTextColor(15, 23, 42)
+      doc.text('ยอดรวมเงินสุทธิทั้งสิ้น (Net Total Amount)', margin + 6, y + 6.5)
+      doc.setFontSize(11)
+      doc.text(netAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' บาท', margin + 140, y + 6.5)
+
+      y += 18
+
+      // Notes block
+      if (form.notes) {
+        doc.setFont('Sarabun', 'bold')
+        doc.setFontSize(9)
+        doc.setTextColor(15, 23, 42)
+        doc.text('หมายเหตุเพิ่มเติม:', margin, y)
+        doc.setFont('Sarabun', 'normal')
+        doc.setTextColor(100, 116, 139)
+        const notesWrap = doc.splitTextToSize(form.notes, 100)
+        doc.text(notesWrap, margin, y + 5)
+      }
+
+      // PromptPay QR Code drawing
+      if (promptPayId && netAmount > 0) {
+        const payload = generatePromptPayQR(promptPayId, netAmount)
+        const qrUrl = await QRCode.toDataURL(payload, { margin: 1 })
+        doc.addImage(qrUrl, 'PNG', margin + 145, y - 2, 30, 30)
+        doc.setFont('Sarabun', 'bold')
+        doc.setFontSize(8)
+        doc.setTextColor(15, 23, 42)
+        doc.text('สแกนจ่ายผ่าน PromptPay', margin + 142, y + 31)
+      }
+
+      // Technician and Customer Signature placeholders
+      y += 35
+      doc.setFont('Sarabun', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(100, 116, 139)
+
+      // Tech sign
+      doc.line(margin, y, margin + 50, y)
+      doc.text('ลงชื่อ................................................ผู้ให้บริการ', margin, y + 5)
+      doc.text(`( ${shopName || 'ผู้ให้บริการ'} )`, margin + 4, y + 10)
+
+      // Customer sign
+      doc.line(margin + 90, y, margin + 140, y)
+      doc.text('ลงชื่อ................................................ผู้รับบริการ', margin + 90, y + 5)
+      doc.text(`( ${form.customer || 'ลูกค้า'} )`, margin + 94, y + 10)
+
+      // Generate and trigger action
+      if (shareToLine) {
+        const filename = `receipt_${receiptNo}.pdf`
+        doc.save(filename)
+
+        const lineText = `----------------------------------------\n` +
+          `🧾 ใบเสร็จรับเงินอิเล็กทรอนิกส์ (Air Buddy Pro)\n` +
+          `----------------------------------------\n` +
+          `👤 ลูกค้า: ${form.customer || '-'}\n` +
+          `🛠️ บริการแอร์: ${form.brand || '-'} (${form.model || '-'})\n` +
+          `💰 ยอดสุทธิ: ${netAmount.toLocaleString('th-TH')} บาท\n` +
+          `🏦 รับชำระผ่าน PromptPay QR เรียบร้อยแล้ว\n` +
+          `ดาวน์โหลดใบเสร็จ PDF ได้จากประวัติเบราว์เซอร์ของคุณแล้วครับ (${filename})`
+
+        const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(lineText)}`;
+        window.open(lineUrl, '_blank');
+      } else {
+        doc.save(`receipt_${receiptNo}.pdf`)
+      }
+
+    } catch (err) {
+      console.error('Failed to generate PDF:', err)
+      alert(`❌ เกิดข้อผิดพลาดในการสร้าง PDF: ${err.message}`)
+    } finally {
+      setGeneratingPdf(false)
+    }
+  }
 
   const isLowBeforeWarning = form.lowBefore && (form.refrigerant === 'R32' ? (unitSystem === 'PSI' ? parseFloat(form.lowBefore) > 250 : parseFloat(form.lowBefore) > 17.2) : (unitSystem === 'PSI' ? parseFloat(form.lowBefore) > 600 : parseFloat(form.lowBefore) > 41.3))
   const isLowAfterWarning = form.lowAfter && (unitSystem === 'PSI' ? parseFloat(form.lowAfter) > 600 : parseFloat(form.lowAfter) > 41.3)
@@ -2985,12 +3401,67 @@ function JobLoggerPanel() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-2">
+              {/* Billing Inputs Block */}
+              <div className="bg-slate-900/60 border border-slate-800/80 p-4 rounded-xl space-y-3.5">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    🪙 ข้อมูลค่าบริการ & การรับเงิน (Billing & Payment)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="label mb-1">ค่าบริการ / ค่าแรง (บาท)</label>
+                    <input
+                      id="job-labor-fee"
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="เช่น 500"
+                      value={form.laborFee || ''}
+                      onChange={e => set('laborFee', e.target.value)}
+                      className="input-field text-sm font-bold text-center"
+                    />
+                  </div>
+                  <div>
+                    <label className="label mb-1">ค่าอะไหล่ / น้ำยา (บาท)</label>
+                    <input
+                      id="job-material-fee"
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="เช่น 300"
+                      value={form.materialFee || ''}
+                      onChange={e => set('materialFee', e.target.value)}
+                      className="input-field text-sm font-bold text-center"
+                    />
+                  </div>
+                  <div>
+                    <label className="label mb-1">ส่วนลดพิเศษ (บาท)</label>
+                    <input
+                      id="job-discount"
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="เช่น 50"
+                      value={form.discount || ''}
+                      onChange={e => set('discount', e.target.value)}
+                      className="input-field text-sm font-bold text-center text-rose-400"
+                    />
+                  </div>
+                </div>
+                
+                {/* Net Total Display */}
+                <div className="flex items-center justify-between pt-2.5 px-1 bg-slate-950/40 rounded-lg p-2.5 border border-slate-900">
+                  <span className="text-xs font-bold text-slate-400">ยอดรวมสุทธิทั้งสิ้น:</span>
+                  <span className="text-base font-black text-sky-400">
+                    {netAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <button
                   id="job-save"
                   onClick={handleSave}
                   disabled={saving || isFormUnchanged}
-                  className={`btn-success ${isFormUnchanged ? 'opacity-65 cursor-not-allowed' : ''}`}
+                  className={`btn-success w-full ${isFormUnchanged ? 'opacity-65 cursor-not-allowed' : ''}`}
                 >
                   {saving ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -3000,13 +3471,54 @@ function JobLoggerPanel() {
                   {isFormUnchanged ? 'บันทึกข้อมูลเรียบร้อยแล้ว' : (saving ? 'กำลังบันทึก...' : 'บันทึกงาน')}
                 </button>
                 <button
+                  id="job-promptpay"
+                  type="button"
+                  onClick={handleOpenPayment}
+                  className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base transition-all active:scale-98 text-white"
+                  style={{ background: 'linear-gradient(135deg, #1e40af, #3b82f6)' }}
+                >
+                  <span>💸</span>
+                  รับชำระเงิน (พร้อมเพย์)
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
                   id="job-line-report"
                   onClick={handleGenerateReport}
-                  className="btn-primary"
-                  style={{ background: 'linear-gradient(135deg, #06b000, #00c300)' }}
+                  className="btn-primary w-full flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg, #06b000, #00c300)', padding: '12px 14px' }}
                 >
-                  <MessageCircle size={20} />
-                  สร้างรายงาน LINE
+                  <MessageCircle size={18} />
+                  <span className="text-xs">สร้างรายงาน LINE</span>
+                </button>
+                
+                <button
+                  id="job-pdf-invoice"
+                  type="button"
+                  disabled={generatingPdf}
+                  onClick={() => handleGeneratePdf(false)}
+                  className="btn-primary w-full flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 active:bg-slate-650 text-white font-bold"
+                  style={{ background: 'none', padding: '12px 14px' }}
+                >
+                  {generatingPdf ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <FileText size={18} className="text-slate-300" />
+                  )}
+                  <span className="text-xs">{generatingPdf ? 'ดาวน์โหลดฟอนต์...' : 'พิมพ์ใบเสร็จ (PDF)'}</span>
+                </button>
+
+                <button
+                  id="job-pdf-line"
+                  type="button"
+                  disabled={generatingPdf}
+                  onClick={() => handleGeneratePdf(true)}
+                  className="btn-primary w-full flex items-center justify-center gap-2 bg-slate-850 hover:bg-slate-800 border border-slate-700/80 text-white font-bold"
+                  style={{ background: 'none', padding: '12px 14px' }}
+                >
+                  <Send size={18} className="text-sky-400" />
+                  <span className="text-xs">ส่งใบเสร็จเข้า LINE</span>
                 </button>
               </div>
 
@@ -3053,6 +3565,98 @@ function JobLoggerPanel() {
                       <MessageCircle size={16} />
                       ส่งห้องแชท LINE
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* PromptPay Payment Modal Overlay */}
+              {showPaymentModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+                  <div className="relative w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 animate-scaleUp">
+                    
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-3.5 border-b border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">💸</span>
+                        <span className="font-black text-white text-base">ชำระเงินผ่านพร้อมเพย์</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPaymentModal(false)}
+                        className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors active:scale-90"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* QR Code Container */}
+                    <div className="flex flex-col items-center justify-center bg-white p-5 rounded-2xl shadow-inner border border-slate-200">
+                      {/* PromptPay Logo */}
+                      <div className="w-full flex justify-center mb-2.5">
+                        <img 
+                          src="https://promptpay.io/public/images/promptpay-logo.png" 
+                          alt="PromptPay" 
+                          className="h-7 object-contain filter contrast-125"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                      
+                      {qrCodeDataUrl ? (
+                        <img src={qrCodeDataUrl} alt="PromptPay QR Code" className="w-52 h-52 object-contain" />
+                      ) : (
+                        <div className="w-52 h-52 flex items-center justify-center border border-dashed border-slate-300 rounded-xl bg-slate-50 text-slate-450 text-xs">
+                          กำลังสร้าง QR Code...
+                        </div>
+                      )}
+
+                      {/* Security Prompt */}
+                      <p className="text-[10px] text-slate-500 font-bold mt-2 text-center">
+                        สแกนจ่ายด้วยแอปพลิเคชันธนาคารบนมือถือของคุณ
+                      </p>
+                    </div>
+
+                    {/* Billing Summary */}
+                    <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 space-y-2.5">
+                      <div className="flex justify-between text-xs text-slate-400 font-semibold">
+                        <span>บัญชีรับเงิน:</span>
+                        <span className="text-slate-200 font-mono font-bold">{promptPayId}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-400 font-semibold">
+                        <span>ชื่อร้านค้า/ช่าง:</span>
+                        <span className="text-slate-200 font-bold">{shopName || 'ช่างแอร์ทั่วไป'}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2.5 border-t border-slate-800">
+                        <span className="text-xs font-bold text-slate-300">ยอดเงินสุทธิ:</span>
+                        <span className="text-xl font-black text-emerald-400">
+                          {netAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Modal actions */}
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowPaymentModal(false)}
+                        className="py-3 px-4 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:text-white font-bold text-sm transition-all active:scale-95 text-center cursor-pointer"
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPaymentModal(false)
+                          alert('✅ ยืนยันการรับชำระเงินเรียบร้อยแล้ว!')
+                        }}
+                        className="py-3 px-4 rounded-xl font-bold text-sm text-white transition-all active:scale-95 text-center cursor-pointer"
+                        style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                      >
+                        ยืนยันรับเงินแล้ว
+                      </button>
+                    </div>
+
                   </div>
                 </div>
               )}
@@ -3199,6 +3803,9 @@ function JobLoggerPanel() {
                                   notes: displayNotes,
                                   lat: job.lat || '',
                                   lon: job.lon || '',
+                                  laborFee: job.laborFee || '',
+                                  materialFee: job.materialFee || '',
+                                  discount: job.discount || '',
                                 })
                                 setSubTab(0)
                                 document.getElementById('job-customer')?.scrollIntoView({ behavior: 'smooth' })
@@ -3850,7 +4457,15 @@ function DocumentLibraryPanel() {
 
 // 7. Settings Tab Component
 function SettingsPanel() {
-  const { unitSystem, setUnitSystem, fontSize, setFontSize, powerSaving, setPowerSaving, appTheme, setAppTheme } = useApp()
+  const { 
+    unitSystem, setUnitSystem, 
+    fontSize, setFontSize, 
+    powerSaving, setPowerSaving, 
+    appTheme, setAppTheme,
+    shopName, setShopName,
+    shopAddress, setShopAddress,
+    promptPayId, setPromptPayId 
+  } = useApp()
 
   const fontOptions = [
     { label: 'ปกติ', value: 'normal' },
@@ -3990,6 +4605,49 @@ function SettingsPanel() {
             >
               <div className="toggle-thumb" />
             </button>
+          </div>
+        </div>
+
+        {/* Billing & Payment Settings */}
+        <div className="card p-5 space-y-4">
+          <div>
+            <p className="text-base font-bold text-white">ข้อมูลสำหรับออกใบเสร็จ & รับเงิน</p>
+            <p className="text-xs text-slate-400 font-semibold mt-0.5">ใช้พิมพ์บนหัวใบเสร็จ PDF และสร้างพร้อมเพย์ QR Code</p>
+          </div>
+          <div className="space-y-3.5 pt-1">
+            <div>
+              <label className="label mb-1">ชื่อร้านค้า / ชื่อช่าง</label>
+              <input
+                type="text"
+                placeholder="เช่น ช่างเจริญ แอร์บริการ"
+                value={shopName}
+                onChange={e => setShopName(e.target.value)}
+                className="input-field text-sm font-semibold"
+              />
+            </div>
+            <div>
+              <label className="label mb-1">เบอร์โทรติดต่อ / ที่อยู่ร้าน</label>
+              <input
+                type="text"
+                placeholder="เช่น โทร. 089-1234567 / 123/45 จ.กรุงเทพฯ"
+                value={shopAddress}
+                onChange={e => setShopAddress(e.target.value)}
+                className="input-field text-sm font-semibold"
+              />
+            </div>
+            <div>
+              <label className="label mb-1">หมายเลขพร้อมเพย์รับชำระเงิน (PromptPay ID)</label>
+              <input
+                type="text"
+                placeholder="เบอร์มือถือ 10 หลัก หรือ เลขประจำตัวประชาชน 13 หลัก"
+                value={promptPayId}
+                onChange={e => setPromptPayId(e.target.value)}
+                className="input-field text-sm font-semibold mono"
+              />
+              <p className="text-[10px] text-slate-500 font-bold mt-1 leading-tight">
+                * ต้องเป็นเบอร์หรือเลขบัตรที่ผูกกับบริการพร้อมเพย์เรียบร้อยแล้วเท่านั้น
+              </p>
+            </div>
           </div>
         </div>
 
