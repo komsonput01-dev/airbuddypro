@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     basicSsl(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['pwa-icon.svg', 'abp-logo.png'],
       manifest: {
         name: 'Air Buddy Pro',
@@ -39,7 +39,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+        navigateFallbackDenylist: [/^\/manuals/]
       }
     }),
   ],
