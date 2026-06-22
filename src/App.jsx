@@ -4296,15 +4296,16 @@ function DocumentLibraryPanel() {
             </button>
             <h2 className="text-base font-bold text-white leading-snug">{viewedDoc.title}</h2>
             {viewedDoc.url && (
-              <a
-                href={viewedDoc.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold hover:bg-sky-500/25"
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  window.open(viewedDoc.url, '_blank')
+                }}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold hover:bg-sky-500/25 tap-target"
               >
                 <ExternalLink size={12} />
                 เปิดในแท็บใหม่
-              </a>
+              </button>
             )}
           </div>
 
@@ -4477,18 +4478,19 @@ function DocumentLibraryPanel() {
                       </div>
                       <div className="flex items-center gap-2 mt-3">
                         {doc.url ? (
-                          <a
+                          <button
                             id={`doc-view-${doc.id}`}
-                            href={doc.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => addRecent(doc)}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              addRecent(doc)
+                              window.open(doc.url, '_blank')
+                            }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold hover:bg-sky-500/25 transition-all tap-target"
                             title="เปิดอ่าน PDF"
                           >
                             <Eye size={12} />
                             เปิดอ่าน PDF
-                          </a>
+                          </button>
                         ) : (
                           <button
                             id={`doc-view-${doc.id}`}
