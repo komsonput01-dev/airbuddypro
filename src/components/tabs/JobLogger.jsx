@@ -159,7 +159,19 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleOpenLINE = () => {
+  const handleOpenLINE = async () => {
+    // ใช้ Web Share API ถ้ารองรับ (มือถือส่วนใหญ่จะรองรับและเปิดแอป LINE ได้ตรงๆ)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          text: lineReport
+        });
+        return;
+      } catch (err) {
+        console.log('Share API canceled or failed', err);
+      }
+    }
+    // กรณีเล่นบนคอมพิวเตอร์ หรือเบราว์เซอร์ไม่รองรับ
     const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
     window.open(url, '_blank');
   }
