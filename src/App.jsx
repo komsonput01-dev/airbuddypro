@@ -1152,37 +1152,25 @@ function generateLINEReport({ form, sharedBTU, unitSystem, user }) {
 
   let priceItems = '';
   if (labor > 0 || material > 0) {
-    priceItems = `\n💰 สรุปรายการค่าบริการ\n`;
-    if (labor > 0) priceItems += `• ค่าบริการ/ค่าแรง: ${labor.toLocaleString('th-TH')} บาท\n`;
-    if (material > 0) priceItems += `• ค่าอะไหล่/น้ำยา: ${material.toLocaleString('th-TH')} บาท\n`;
-    if (discount > 0) priceItems += `• ส่วนลด: -${discount.toLocaleString('th-TH')} บาท\n`;
-    priceItems += `▶ ยอดรวมสุทธิ: ${netAmount.toLocaleString('th-TH')} บาท\n----------------------------------------`;
+    priceItems = `\n💰 ค่าบริการ\n`;
+    if (labor > 0) priceItems += `• ค่าแรง: ${labor.toLocaleString('th-TH')} บ.\n`;
+    if (material > 0) priceItems += `• อะไหล่/น้ำยา: ${material.toLocaleString('th-TH')} บ.\n`;
+    if (discount > 0) priceItems += `• ส่วนลด: -${discount.toLocaleString('th-TH')} บ.\n`;
+    priceItems += `▶ ยอดสุทธิ: ${netAmount.toLocaleString('th-TH')} บ.\n`;
   }
 
-  const techName = user?.name || 'ทีมช่างแอร์มืออาชีพ';
+  const techName = user?.name || 'ช่างแอร์';
   const techPhone = user?.phone || '-';
 
-  return `🛠️ รายงานการตรวจเช็คและบริการ (Air Buddy Pro)
-----------------------------------------
-👤 ลูกค้า: ${form.customer || '-'}
-📞 เบอร์โทร: ${form.phone || '-'}
-
-❄️ ข้อมูลเครื่องปรับอากาศ
-• ยี่ห้อ/รุ่น: ${form.brand || '-'} - ${form.model || '-'}
-• ชนิดน้ำยา: ${form.refrigerant || '-'}
-• กระแสไฟ: ${form.current || '-'} A
-
-📊 การวัดความดันน้ำยาแอร์ (${unitSystem})
-• ก่อนบริการ: ${form.lowBefore || '-'}/${form.highBefore || '-'}
-• หลังบริการ: ${form.lowAfter || '-'}/${form.highAfter || '-'}
-
-📝 บันทึกช่าง: ${form.notes || '-'}
-----------------------------------------${priceItems}
-💬 หากมีปัญหาการใช้งาน ติดต่อช่างผู้ดูแล:
-👨‍🔧 ช่างผู้ดูแล: ${techName}
-📱 โทรติดต่อ: ${techPhone}
-
-🙏 ขอบคุณที่ไว้วางใจใช้บริการครับ 🙏`;
+  return `🛠️ งานบริการ (Air Buddy Pro)
+👤 ล/ค: ${form.customer || '-'} | 📞 ${form.phone || '-'}
+❄️ แอร์: ${form.brand || '-'} ${form.model || '-'} (${form.refrigerant || '-'})
+⚡ กระแสไฟ: ${form.current || '-'}A
+📊 ความดัน: ก่อน ${form.lowBefore || '-'}/${form.highBefore || '-'} ➡️ หลัง ${form.lowAfter || '-'}/${form.highAfter || '-'}
+📝 บันทึก: ${form.notes || '-'}
+---${priceItems}---
+👨‍🔧 ผู้ดูแล: ${techName} | 📱 ${techPhone}
+🙏 ขอบคุณครับ 🙏`;
 }
 
 // ─── PROMPTPAY QR GENERATOR & THAI FONT LOADER FOR INVOICE PDF ───────────────
