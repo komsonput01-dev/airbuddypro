@@ -2884,7 +2884,7 @@ function JobLoggerPanel() {
           `ดาวน์โหลดใบเสร็จ PDF ในเครื่องของคุณแล้วครับ`
 
         // Use rel="noreferrer" link to prevent referrer leak (Vercel Preview URL protection crash)
-        const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(lineText)}`
+        const lineUrl = `https://line.me/R/share?text=${encodeURIComponent(lineText)}`
         const a = document.createElement('a')
         a.href = lineUrl
         a.target = '_blank'
@@ -3056,7 +3056,7 @@ function JobLoggerPanel() {
   }
 
   const handleOpenLINE = () => {
-    const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`
+    const lineUrl = `https://line.me/R/share?text=${encodeURIComponent(lineReport)}`
     const a = document.createElement('a')
     a.href = lineUrl
     a.target = '_blank'
