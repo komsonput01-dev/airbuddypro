@@ -172,20 +172,15 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
       }
     }
     
-    // หากใช้งานบน PC (Windows/Mac) ให้คัดลอกข้อความแทนเพราะ LINE Web Share พัง
-    if (!/mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
-      navigator.clipboard.writeText(lineReport)
-        .then(() => {
-          alert("📋 คัดลอกข้อความให้เรียบร้อยแล้วครับ!\n\nเนื่องจากระบบแชร์ของ LINE บนคอมพิวเตอร์มีปัญหาและไม่รองรับข้อความยาวๆ\nกรุณาเปิดโปรแกรม LINE PC แล้วกดวาง (Ctrl+V) ในแชตลูกค้าได้เลยครับ");
-        })
-        .catch(() => {
-          alert("ไม่สามารถคัดลอกข้อความได้ กรุณากดปุ่ม 'คัดลอกข้อความ' ด้านซ้ายแทนครับ");
-        });
-      return;
-    }
+    // สำหรับคอมพิวเตอร์: สร้างรายงานฉบับย่อเพื่อแก้ปัญหา URL ยาวเกินไปจนหน้าเว็บ LINE พัง
+    const shortReport = `🛠️ รายงานแจ้งซ่อม (Air Buddy Pro)
+ลูกค้า: ${form.customer || '-'} | 📞 ${form.phone || '-'}
+แอร์: ${form.brand || '-'} - ${form.model || '-'}
+กระแสไฟ: ${form.current || '-'} A
+บันทึกช่าง: ${form.notes || '-'}
+ขอบคุณที่ใช้บริการครับ 🙏`;
 
-    // กรณีเบราว์เซอร์มือถือไม่รองรับ Web Share
-    const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
+    const url = `https://line.me/R/msg/text/?${encodeURIComponent(shortReport)}`;
     window.open(url, '_blank');
   }
 
