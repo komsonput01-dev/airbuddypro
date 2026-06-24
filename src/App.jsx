@@ -1144,14 +1144,45 @@ const EMPTY_FORM = {
   laborFee: '', materialFee: '', discount: '',
 }
 
-function generateLINEReport({ form, sharedBTU, unitSystem }) {
-  return `🛠️ รายงานซ่อม (Air Buddy Pro)
-ลูกค้า: ${form.customer || '-'} | 📞 ${form.phone || '-'}
-แอร์: ${form.brand || '-'} - ${form.model || '-'}
-กระแสไฟ: ${form.current || '-'} A
-ความดัน (${unitSystem}): ก่อน ${form.lowBefore || '-'}/${form.highBefore || '-'} ➡️ หลัง ${form.lowAfter || '-'}/${form.highAfter || '-'}
-บันทึก: ${form.notes || '-'}
-ขอบคุณที่ใช้บริการ 🙏`
+function generateLINEReport({ form, sharedBTU, unitSystem, user }) {
+  const labor = parseFloat(form.laborFee) || 0;
+  const material = parseFloat(form.materialFee) || 0;
+  const discount = parseFloat(form.discount) || 0;
+  const netAmount = Math.max(0, labor + material - discount);
+
+  let priceItems = '';
+  if (labor > 0 || material > 0) {
+    priceItems = `\n💰 สรุปรายการค่าบริการ\n`;
+    if (labor > 0) priceItems += `• ค่าบริการ/ค่าแรง: ${labor.toLocaleString('th-TH')} บาท\n`;
+    if (material > 0) priceItems += `• ค่าอะไหล่/น้ำยา: ${material.toLocaleString('th-TH')} บาท\n`;
+    if (discount > 0) priceItems += `• ส่วนลด: -${discount.toLocaleString('th-TH')} บาท\n`;
+    priceItems += `▶ ยอดรวมสุทธิ: ${netAmount.toLocaleString('th-TH')} บาท\n----------------------------------------`;
+  }
+
+  const techName = user?.name || 'ทีมช่างแอร์มืออาชีพ';
+  const techPhone = user?.phone || '-';
+
+  return `🛠️ รายงานการตรวจเช็คและบริการ (Air Buddy Pro)
+----------------------------------------
+👤 ลูกค้า: ${form.customer || '-'}
+📞 เบอร์โทร: ${form.phone || '-'}
+
+❄️ ข้อมูลเครื่องปรับอากาศ
+• ยี่ห้อ/รุ่น: ${form.brand || '-'} - ${form.model || '-'}
+• ชนิดน้ำยา: ${form.refrigerant || '-'}
+• กระแสไฟ: ${form.current || '-'} A
+
+📊 การวัดความดันน้ำยาแอร์ (${unitSystem})
+• ก่อนบริการ: ${form.lowBefore || '-'}/${form.highBefore || '-'}
+• หลังบริการ: ${form.lowAfter || '-'}/${form.highAfter || '-'}
+
+📝 บันทึกช่าง: ${form.notes || '-'}
+----------------------------------------${priceItems}
+💬 หากมีปัญหาการใช้งาน ติดต่อช่างผู้ดูแล:
+👨‍🔧 ช่างผู้ดูแล: ${techName}
+📱 โทรติดต่อ: ${techPhone}
+
+🙏 ขอบคุณที่ไว้วางใจใช้บริการครับ 🙏`;
 }
 
 // ─── PROMPTPAY QR GENERATOR & THAI FONT LOADER FOR INVOICE PDF ───────────────
@@ -3044,7 +3075,7 @@ function JobLoggerPanel() {
   }
 
   const handleGenerateReport = () => {
-    const report = generateLINEReport({ form, sharedBTU, unitSystem })
+    const report = generateLINEReport({ form, sharedBTU, unitSystem, user })
     setLineReport(report)
     setShowReport(true)
   }
