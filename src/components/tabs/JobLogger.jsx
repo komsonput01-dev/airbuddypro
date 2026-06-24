@@ -161,7 +161,7 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
 
   const handleOpenLINE = async () => {
     // ใช้ Web Share API ถ้ารองรับ (มือถือส่วนใหญ่จะรองรับและเปิดแอป LINE ได้ตรงๆ)
-    if (navigator.share) {
+    if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
       try {
         await navigator.share({
           text: lineReport
@@ -171,6 +171,19 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
         console.log('Share API canceled or failed', err);
       }
     }
+    
+    // หากใช้งานบน PC (Windows/Mac) ให้พยายามเปิดโปรแกรม LINE PC โดยตรง
+    if (!/mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
+      // ใช้ line:// protocol เพื่อบังคับเปิดโปรแกรมในเครื่อง
+      window.location.href = `line://msg/text/?${encodeURIComponent(lineReport)}`;
+      // เปิดเว็บแชร์สำรองไว้เผื่อไม่มีโปรแกรม
+      setTimeout(() => {
+        const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
+        window.open(url, '_blank');
+      }, 500);
+      return;
+    }
+
     // กรณีเล่นบนคอมพิวเตอร์ หรือเบราว์เซอร์ไม่รองรับ
     const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
     window.open(url, '_blank');
