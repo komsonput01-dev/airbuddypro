@@ -3087,14 +3087,21 @@ function JobLoggerPanel() {
   }
 
   const handleOpenLINE = () => {
-    const lineUrl = `https://social-plugins.line.me/lineit/share?text=${encodeURIComponent(lineReport)}`
-    const a = document.createElement('a')
-    a.href = lineUrl
-    a.target = '_blank'
-    a.rel = 'noreferrer'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    // 1. ถ้าใช้มือถือ ให้พยายามใช้ Native Web Share API
+    if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
+      navigator.share({ text: lineReport }).catch(err => console.log('Share canceled:', err))
+      return
+    }
+
+    // 2. ถ้าเล่นบน PC รายงานแบบเต็มจะยาวเกินไปจนเกิด Error 400 บนเว็บของ LINE
+    // จึงบังคับคัดลอกข้อความแทน แล้วให้ผู้ใช้นำไปวางในแชตเอง
+    navigator.clipboard.writeText(lineReport)
+      .then(() => {
+        alert("📋 คัดลอกรายงานเรียบร้อยแล้ว!\n\nข้อความรายงานแบบเต็มมีความยาวเกินกว่าที่ระบบของเว็บ LINE จะรับได้ (Error 400)\n\nกรุณาเปิดแอป LINE PC ของคุณแล้วกด 'วาง' (Ctrl+V) ในช่องแชตลูกค้าได้เลยครับ!")
+      })
+      .catch(() => {
+        alert("กรุณากดปุ่ม 'คัดลอกข้อความ' เพื่อนำไปวางในช่องแชต LINE ด้วยตนเองครับ")
+      })
   }
 
   const handleDeleteJob = async (job) => {
