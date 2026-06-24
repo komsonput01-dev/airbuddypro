@@ -1145,37 +1145,13 @@ const EMPTY_FORM = {
 }
 
 function generateLINEReport({ form, sharedBTU, unitSystem }) {
-  const lowBeforeVal = parseFloat(form.lowBefore)
-  const lowAfterVal = parseFloat(form.lowAfter)
-  const highBeforeVal = parseFloat(form.highBefore)
-  const highAfterVal = parseFloat(form.highAfter)
-
-  const hasLowDiff = !isNaN(lowBeforeVal) && !isNaN(lowAfterVal)
-  const hasHighDiff = !isNaN(highBeforeVal) && !isNaN(highAfterVal)
-
-  const lowDiff = hasLowDiff ? (lowAfterVal - lowBeforeVal) : null
-  const highDiff = hasHighDiff ? (highAfterVal - highBeforeVal) : null
-
-  let diffParts = []
-  if (lowDiff !== null) diffParts.push(`Low: ${lowDiff >= 0 ? '+' : ''}${lowDiff.toFixed(1)}`)
-  if (highDiff !== null) diffParts.push(`High: ${highDiff >= 0 ? '+' : ''}${highDiff.toFixed(1)}`)
-  const calculatedDiff = diffParts.length > 0 ? `${diffParts.join(' / ')}` : '-'
-  const diffUnit = diffParts.length > 0 ? ` ${unitSystem}` : ''
-
-  return `----------------------------------------
-🛠️ **รายงานการตรวจเช็คเครื่องปรับอากาศ (Air Buddy Pro)**
-----------------------------------------
-👤 **ลูกค้า:** ${form.customer || '-'} | 📞 ${form.phone || '-'}
-❄️ **เครื่อง:** ${form.brand || '-'} - ${form.model || '-'} (${form.serialNo || '-'})
-🧪 **น้ำยา:** ${form.refrigerant || '-'}
-⚡ **กระแสไฟ:** ${form.current || '-'} A
-📊 **ความดันน้ำยาแอร์:**
-  • ก่อนบริการ: ${form.lowBefore || '-'} / ${form.highBefore || '-'} ${unitSystem}
-  • หลังบริการ: ${form.lowAfter || '-'} / ${form.highAfter || '-'} ${unitSystem}
-  • ส่วนต่าง: ${calculatedDiff}${diffUnit}
-📝 **บันทึกช่าง:** ${form.notes || '-'}
-----------------------------------------
-ขอบคุณที่ใช้บริการครับ 🙏`
+  return `🛠️ รายงานซ่อม (Air Buddy Pro)
+ลูกค้า: ${form.customer || '-'} | 📞 ${form.phone || '-'}
+แอร์: ${form.brand || '-'} - ${form.model || '-'}
+กระแสไฟ: ${form.current || '-'} A
+ความดัน (${unitSystem}): ก่อน ${form.lowBefore || '-'}/${form.highBefore || '-'} ➡️ หลัง ${form.lowAfter || '-'}/${form.highAfter || '-'}
+บันทึก: ${form.notes || '-'}
+ขอบคุณที่ใช้บริการ 🙏`
 }
 
 // ─── PROMPTPAY QR GENERATOR & THAI FONT LOADER FOR INVOICE PDF ───────────────
