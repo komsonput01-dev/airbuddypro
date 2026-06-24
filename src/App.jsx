@@ -4960,7 +4960,7 @@ function LoginScreen({ onLoginSuccess }) {
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 text-slate-100 p-4 relative overflow-hidden">
       {/* Background Image with Overlay */}
       <div 
-        className="absolute inset-0 z-0 opacity-[0.3] pointer-events-none"
+        className="absolute inset-0 z-0 opacity-[0.6] pointer-events-none"
         style={{
           backgroundImage: "url('/login-bg.png')",
           backgroundSize: 'cover',
