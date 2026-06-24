@@ -149,8 +149,8 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
     }
     
     // กรณีเล่นบนคอมพิวเตอร์ หรือเบราว์เซอร์ไม่รองรับ
-    // เปลี่ยนจาก msg/text/ เป็น share?text= เพื่อแก้บั๊กกล่อง Preview ของ LINE Web Share
-    const url = `https://line.me/R/share?text=${encodeURIComponent(lineReport)}`;
+    // ใช้ URL ของ Web Share โดยตรง และใช้พารามิเตอร์ text= อย่างเดียวเพื่อเลี่ยงกล่องพรีวิว
+    const url = `https://social-plugins.line.me/lineit/share?text=${encodeURIComponent(lineReport)}`;
     window.open(url, '_blank');
   }
 
