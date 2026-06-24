@@ -173,12 +173,13 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
     }
     
     // สำหรับคอมพิวเตอร์: สร้างรายงานฉบับย่อเพื่อแก้ปัญหา URL ยาวเกินไปจนหน้าเว็บ LINE พัง
-    const shortReport = `🛠️ รายงานแจ้งซ่อม (Air Buddy Pro)
+    const shortReport = `🛠️ รายงานซ่อม (Air Buddy Pro)
 ลูกค้า: ${form.customer || '-'} | 📞 ${form.phone || '-'}
 แอร์: ${form.brand || '-'} - ${form.model || '-'}
 กระแสไฟ: ${form.current || '-'} A
-บันทึกช่าง: ${form.notes || '-'}
-ขอบคุณที่ใช้บริการครับ 🙏`;
+ความดัน (${unitSystem}): ก่อน ${form.lowBefore || '-'}/${form.highBefore || '-'} ➡️ หลัง ${form.lowAfter || '-'}/${form.highAfter || '-'}
+บันทึก: ${form.notes || '-'}
+ขอบคุณที่ใช้บริการ 🙏`;
 
     const url = `https://line.me/R/msg/text/?${encodeURIComponent(shortReport)}`;
     window.open(url, '_blank');
