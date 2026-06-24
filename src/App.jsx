@@ -4960,7 +4960,7 @@ function LoginScreen({ onLoginSuccess }) {
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 text-slate-100 p-4 relative overflow-hidden">
       {/* Background Image with Overlay */}
       <div 
-        className="absolute inset-0 z-0 opacity-[0.15] pointer-events-none"
+        className="absolute inset-0 z-0 opacity-[0.4] pointer-events-none"
         style={{
           backgroundImage: "url('/login-bg.png')",
           backgroundSize: 'cover',
@@ -4968,7 +4968,7 @@ function LoginScreen({ onLoginSuccess }) {
           backgroundRepeat: 'no-repeat'
         }}
       />
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950/40 to-slate-950/90 pointer-events-none" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950/20 to-slate-950/95 pointer-events-none" />
 
       {/* Background gradients for premium glassmorphism vibe */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/15 rounded-full blur-[120px] pointer-events-none z-0" />
