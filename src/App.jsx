@@ -2904,13 +2904,17 @@ function JobLoggerPanel() {
 
         // Use rel="noreferrer" link to prevent referrer leak (Vercel Preview URL protection crash)
         const lineUrl = `https://social-plugins.line.me/lineit/share?text=${encodeURIComponent(lineText)}`
-        const a = document.createElement('a')
-        a.href = lineUrl
-        a.target = '_blank'
-        a.rel = 'noreferrer'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
+        
+        const width = 500;
+        const height = 700;
+        const left = (window.innerWidth - width) / 2;
+        const top = (window.innerHeight - height) / 2;
+        
+        window.open(
+          lineUrl,
+          'LINESharePopup',
+          `width=${width},height=${height},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`
+        )
       } else {
         doc.save(`receipt_${receiptNo}.pdf`)
       }
@@ -3081,15 +3085,20 @@ function JobLoggerPanel() {
       return
     }
 
-    // 2. ถ้าเล่นบน PC กลับไปใช้วิธีเปิดเว็บ Web Share ตามเดิม (ตามที่ผู้ใช้ต้องการ)
+    // 2. ถ้าเล่นบน PC เปิดเว็บ Web Share เป็นหน้าต่าง Popup ขนาดเล็ก (คล้ายมือถือ)
     const lineUrl = `https://social-plugins.line.me/lineit/share?text=${encodeURIComponent(lineReport)}`
-    const a = document.createElement('a')
-    a.href = lineUrl
-    a.target = '_blank'
-    a.rel = 'noreferrer'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    
+    // ตั้งค่าขนาดหน้าต่างให้ดูเหมือนมือถือ
+    const width = 500;
+    const height = 700;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    
+    window.open(
+      lineUrl,
+      'LINESharePopup',
+      `width=${width},height=${height},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`
+    )
   }
 
   const handleDeleteJob = async (job) => {
