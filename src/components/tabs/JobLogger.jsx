@@ -172,19 +172,19 @@ function JobLoggerForm({ unitSystem, sharedBTU, scannedJobData, onJobSaved }) {
       }
     }
     
-    // หากใช้งานบน PC (Windows/Mac) ให้พยายามเปิดโปรแกรม LINE PC โดยตรง
+    // หากใช้งานบน PC (Windows/Mac) ให้คัดลอกข้อความแทนเพราะ LINE Web Share พัง
     if (!/mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
-      // ใช้ line:// protocol เพื่อบังคับเปิดโปรแกรมในเครื่อง
-      window.location.href = `line://msg/text/?${encodeURIComponent(lineReport)}`;
-      // เปิดเว็บแชร์สำรองไว้เผื่อไม่มีโปรแกรม
-      setTimeout(() => {
-        const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
-        window.open(url, '_blank');
-      }, 500);
+      navigator.clipboard.writeText(lineReport)
+        .then(() => {
+          alert("📋 คัดลอกข้อความให้เรียบร้อยแล้วครับ!\n\nเนื่องจากระบบแชร์ของ LINE บนคอมพิวเตอร์มีปัญหาและไม่รองรับข้อความยาวๆ\nกรุณาเปิดโปรแกรม LINE PC แล้วกดวาง (Ctrl+V) ในแชตลูกค้าได้เลยครับ");
+        })
+        .catch(() => {
+          alert("ไม่สามารถคัดลอกข้อความได้ กรุณากดปุ่ม 'คัดลอกข้อความ' ด้านซ้ายแทนครับ");
+        });
       return;
     }
 
-    // กรณีเล่นบนคอมพิวเตอร์ หรือเบราว์เซอร์ไม่รองรับ
+    // กรณีเบราว์เซอร์มือถือไม่รองรับ Web Share
     const url = `https://line.me/R/msg/text/?${encodeURIComponent(lineReport)}`;
     window.open(url, '_blank');
   }
