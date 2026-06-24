@@ -4958,11 +4958,23 @@ function LoginScreen({ onLoginSuccess }) {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 text-slate-100 p-4 relative overflow-hidden">
-      {/* Background gradients for premium glassmorphism vibe */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-[120px] pointer-events-none" />
+      {/* Background Image with Overlay */}
+      <div 
+        className="absolute inset-0 z-0 opacity-[0.15] pointer-events-none"
+        style={{
+          backgroundImage: "url('/login-bg.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950/40 to-slate-950/90 pointer-events-none" />
 
-      <div className="w-full max-w-md bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl space-y-6 relative z-10">
+      {/* Background gradients for premium glassmorphism vibe */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/15 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/15 rounded-full blur-[120px] pointer-events-none z-0" />
+
+      <div className="w-full max-w-md bg-slate-900/60 border border-slate-700/50 backdrop-blur-2xl rounded-2xl p-8 shadow-2xl shadow-black/50 space-y-6 relative z-10">
         <div className="text-center space-y-2">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Wind className="text-white" size={28} />
